@@ -81,6 +81,7 @@ function finish() {
 }
 let drag: { item: DiagramElement; points: Point[]; index: number } | undefined;
 function start(e: MouseEvent, index: number) {
+  if (props.selected?.locked || (props.selected?.groupId && props.document.elements.some(e=>e.groupId===props.selected?.groupId&&e.locked))) return;
   e.preventDefault();
   e.stopPropagation();
   drag = {
@@ -152,7 +153,7 @@ onBeforeUnmount(() => {
         <button :disabled="!complete" @click.stop="finish">完成线条</button>
       </div></template
     >
-    <template v-else-if="selected?.line"
+    <template v-else-if="selected?.line && selected.visible !== false && !selected.locked && !(selected.groupId && document.elements.some(e=>e.groupId===selected?.groupId&&e.locked))"
       ><svg
         class="control-lines"
         width="100%"
