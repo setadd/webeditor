@@ -20,6 +20,8 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import DataPanel from "./components/DataPanel.vue";
+import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
 import RuntimeView from "./components/RuntimeView.vue";
 import { usePublication } from "./composables/usePublication";
@@ -33,6 +35,9 @@ const {
   document: doc,
   selected,
   selectedId,
+  selectedIds,
+  canUndo,
+  canRedo,
   loading,
   saving,
   error,
@@ -42,7 +47,8 @@ const {
 } = editor;
 const publication = usePublication(doc);
 const { mode, runtime, publishing, publicationError } = publication;
-const pages = usePages(doc, editor.mutate);
+const pages = usePages(doc, (change) => { editor.mutate(change); editor.clearSelection(); });
+const { samples, history } = useMockData(doc);
 const newPageVisible = ref(false);
 const newPage = reactive({ name: "未命名组态", width: 960, height: 640 });
 const newPageValid = computed(
@@ -83,7 +89,10 @@ const busy = computed(() => loading.value || saving.value);
 function changeText(field: "name" | "text", value: string) {
   if (selected.value) editor.update(selected.value.id, { [field]: value });
 }
-function changePosition(field: "x" | "y", value: number | undefined) {
+function changePosition(
+  field: "x" | "y" | "width" | "height" | "rotation",
+  value: number | undefined,
+) {
   if (selected.value && value !== undefined && Number.isFinite(value))
     editor.update(selected.value.id, { [field]: value });
 }
@@ -92,8 +101,8 @@ function changeColor(value: string) {
   if (selected.value && isColor(value))
     editor.update(selected.value.id, { color: value.toLowerCase() });
 }
-function select(item: DiagramElement) {
-  selectedId.value = item.id;
+function select(item: DiagramElement, event: MouseEvent) {
+  editor.select(item.id, event.shiftKey || event.ctrlKey || event.metaKey);
 }
 async function confirmReplacement(): Promise<boolean> {
   if (!dirty.value) return true;
@@ -146,7 +155,39 @@ function beforeUnload(event: BeforeUnloadEvent) {
     event.returnValue = "";
   }
 }
+function keydown(event: KeyboardEvent) {
+  if (mode.value !== "edit") return;
+  if (
+    (event.target as HTMLElement).closest(
+      "input,textarea,select,[contenteditable=true],[role=dialog]",
+    ) ||
+    document.querySelector(".el-overlay-dialog")
+  )
+    return;
+  const ctrl = event.ctrlKey || event.metaKey;
+  let action: (() => unknown) | undefined;
+  if (ctrl)
+    action = (
+      {
+        z: event.shiftKey ? editor.redo : editor.undo,
+        y: editor.redo,
+        c: editor.copy,
+        v: editor.paste,
+        a: editor.selectAll,
+        s: save,
+        d: editor.duplicate,
+      } as Record<string, () => unknown>
+    )[event.key.toLowerCase()];
+  else if (event.key === "Delete" || event.key === "Backspace")
+    action = editor.remove;
+  else if (event.key === "Escape") action = () => editor.select(null);
+  if (action) {
+    event.preventDefault();
+    action();
+  }
+}
 onMounted(() => {
+  window.addEventListener("keydown", keydown);
   void editor.open();
   if (location.hash === "#published") void publication.openPublished();
   window.addEventListener("beforeunload", beforeUnload);
@@ -155,6 +196,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("beforeunload", beforeUnload);
   window.removeEventListener("keydown", guardRuntimeKeys, true);
+  window.removeEventListener("keydown", keydown);
 });
 </script>
 
@@ -231,6 +273,17 @@ onBeforeUnmount(() => {
           <div class="section-label">常用图元</div>
           <div class="component-grid">
             <button
+              v-for="kind in ['metric', 'chart'] as const"
+              :key="kind"
+              :aria-label="kind === 'metric' ? '添加指标' : '添加趋势图'"
+              class="component-button"
+              :disabled="loading || loadBlocked"
+              @click="editor.add(kind)"
+            >
+              <strong>{{ kind === "metric" ? "指标" : "趋势图" }}</strong
+              ><small>实时与历史数据</small>
+            </button>
+            <button
               aria-label="添加设备"
               class="component-button"
               :disabled="loading || loadBlocked"
@@ -265,9 +318,9 @@ onBeforeUnmount(() => {
             v-for="item in doc.elements"
             :key="item.id"
             :aria-label="`选择图元 ${item.name}`"
-            :aria-pressed="selectedId === item.id"
-            :class="['layer-item', { active: selectedId === item.id }]"
-            @click="select(item)"
+            :aria-pressed="selectedIds.includes(item.id)"
+            :class="['layer-item', { active: selectedIds.includes(item.id) }]"
+            @click="select(item, $event)"
           >
             <el-icon
               ><Cpu v-if="item.kind === 'device'" /><EditPen v-else /></el-icon
@@ -286,6 +339,16 @@ onBeforeUnmount(() => {
         </div>
       </aside>
       <section class="canvas-workspace" aria-label="编辑工作区">
+        <div class="edit-actions" role="toolbar" aria-label="编辑命令">
+          <el-button :disabled="!canUndo" @click="editor.undo">撤销</el-button
+          ><el-button :disabled="!canRedo" @click="editor.redo">重做</el-button
+          ><el-button @click="editor.copy">复制</el-button
+          ><el-button @click="editor.paste">粘贴</el-button
+          ><el-button @click="editor.duplicate">重复</el-button
+          ><el-button @click="editor.selectAll">全选</el-button
+          ><el-button @click="editor.remove">删除</el-button
+          ><span>已选 {{ selectedIds.length }} 项</span>
+        </div>
         <div class="canvas-toolbar">
           <span class="tool-selected"
             ><el-icon><Pointer /></el-icon> 选择 / 移动</span
@@ -310,8 +373,15 @@ onBeforeUnmount(() => {
             >
               <DiagramCanvas
                 :document="doc"
+                :samples="samples"
+                :history="history"
                 :selected-id="selectedId"
-                @select="selectedId = $event"
+                :selected-ids="selectedIds"
+                @select="editor.select"
+                @select-many="selectedIds = $event"
+                @gesture-start="editor.beginGesture"
+                @gesture-end="editor.endGesture"
+                @transform="(id, patch) => editor.update(id, patch)"
                 @move="(id, x, y) => editor.update(id, { x, y })"
               />
               <div v-if="!doc.elements.length" class="canvas-empty">
@@ -352,7 +422,12 @@ onBeforeUnmount(() => {
             ></span>
             <div>
               <strong>{{
-                selected.kind === "device" ? "设备图元" : "文字图元"
+                {
+                  device: "设备图元",
+                  text: "文字图元",
+                  metric: "指标图元",
+                  chart: "趋势图元",
+                }[selected.kind]
               }}</strong
               ><small>修改后即时应用到画布</small>
             </div>
@@ -397,6 +472,26 @@ onBeforeUnmount(() => {
               /></el-form-item>
             </div>
             <p class="field-hint">从画布左上角计算，单位为 px</p>
+            <el-form-item
+              v-for="field in ['width', 'height', 'rotation'] as const"
+              :key="field"
+              :label="
+                { width: '宽度', height: '高度', rotation: '旋转角度' }[field]
+              "
+              :for="field"
+              ><el-input-number
+                :id="field"
+                :model-value="selected[field] || 0"
+                :min="field === 'rotation' ? 0 : 20"
+                :max="
+                  field === 'rotation'
+                    ? 359
+                    : field === 'width'
+                      ? doc.page.width
+                      : doc.page.height
+                "
+                @update:model-value="changePosition(field, $event)"
+            /></el-form-item>
             <div class="property-section-title separated">外观</div>
             <el-form-item
               label="基础颜色"
@@ -461,6 +556,11 @@ onBeforeUnmount(() => {
             <p>④ 保存你的工作</p>
           </div>
         </div>
+        <DataPanel
+          @range="(id, historyMinutes) => editor.update(id, { historyMinutes })"
+          :selected="selected"
+          @bind="(id, binding) => editor.update(id, { binding })"
+        />
         <div class="property-footer">
           <el-icon><DocumentChecked /></el-icon> {{ lastSaved }}
         </div>
@@ -515,3 +615,23 @@ onBeforeUnmount(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.edit-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+.edit-actions .el-button {
+  margin: 0;
+}
+.edit-actions span {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+</style>

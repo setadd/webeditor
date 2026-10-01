@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { toRef } from "vue";
+import { useMockData } from "../data/useMockData";
 import DiagramCanvas from "./DiagramCanvas.vue";
 import PageControls from "./PageControls.vue";
 import { activatePage } from "../composables/usePages";
 import type { DiagramDocument } from "../domain/document";
-defineProps<{ document: DiagramDocument; mode: string }>();
+const props = defineProps<{ document: DiagramDocument; mode: string }>();
+const { samples, history } = useMockData(toRef(props, "document"));
 defineEmits<{ exit: [] }>();
 </script>
 <template>
@@ -28,7 +31,7 @@ defineEmits<{ exit: [] }>();
       @switch="activatePage(document, $event)"
     />
     <div style="overflow: auto; max-height: calc(100vh - 180px); padding: 24px">
-      <DiagramCanvas :document="document" :selected-id="null" readonly />
+      <DiagramCanvas :document="document" :samples="samples" :history="history" :selected-id="null" readonly />
     </div>
   </section>
 </template>

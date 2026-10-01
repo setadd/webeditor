@@ -1,15 +1,25 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
+
+import { dataAppearance, chartMarkup } from "./dataAppearance";
+import type { Sample, HistorySample } from "../data/useMockData";
 
 const props = defineProps<{
   document: DiagramDocument;
   readonly?: boolean;
   selectedId: string | null;
+  selectedIds?: string[];
+  samples?: Record<string, Sample>;
+  history?: Record<string, HistorySample[]>;
 }>();
 const emit = defineEmits<{
-  select: [id: string | null];
+  select: [id: string | null, additive?: boolean];
+  selectMany: [ids: string[]];
+  gestureStart: [];
+  gestureEnd: [];
+  transform: [id: string, patch: Partial<DiagramElement>];
   move: [id: string, x: number, y: number];
 }>();
 const container = ref<HTMLDivElement>();
@@ -17,7 +27,7 @@ let graph: Graph | undefined;
 let syncing = false;
 
 function appearance(item: DiagramElement): CellAttrs {
-  const active = !props.readonly && props.selectedId === item.id;
+  const active = !props.readonly && (props.selectedIds || [props.selectedId]).includes(item.id);
   if (item.kind === "text") {
     return {
       body: {
@@ -103,6 +113,18 @@ function appearance(item: DiagramElement): CellAttrs {
   };
 }
 
+function effectiveAppearance(item: DiagramElement) {
+  const base = appearance(item);
+  const data = dataAppearance(
+    item,
+    props.samples?.[item.binding || ""],
+    props.history?.[item.binding || ""],
+  );
+  for (const [key, value] of Object.entries(data))
+    base[key] = { ...base[key], ...value };
+  return base;
+}
+
 function addNode(item: DiagramElement): Node {
   return graph!.addNode({
     id: item.id,
@@ -125,7 +147,11 @@ function addNode(item: DiagramElement): Node {
           ],
         }
       : {}),
-    attrs: appearance(item),
+    angle: item.rotation || 0,
+    ...(item.kind === "chart" || item.kind === "metric"
+      ? { markup: chartMarkup }
+      : {}),
+    attrs: effectiveAppearance(item),
   });
 }
 
@@ -146,7 +172,9 @@ function synchronize() {
       const position = node.position();
       if (position.x !== item.x || position.y !== item.y)
         node.position(item.x, item.y);
-      node.setAttrs(appearance(item));
+      node.resize(item.width, item.height);
+      node.rotate(item.rotation || 0, { absolute: true });
+      node.setAttrs(effectiveAppearance(item));
     }
   } finally {
     syncing = false;
@@ -166,26 +194,195 @@ onMounted(() => {
     panning: false,
     mousewheel: false,
   });
-  graph.on("node:click", ({ node }) => emit("select", node.id));
-  graph.on("node:mousedown", ({ node }) => emit("select", node.id));
-  graph.on("blank:click", () => emit("select", null));
+  graph.on("node:mousedown", ({ node, e }) => {
+    if (props.readonly) { emit("select", node.id); return; }
+    if (e.shiftKey || e.ctrlKey || e.metaKey) emit("select", node.id, true);
+    else if (!(props.selectedIds || [props.selectedId]).includes(node.id))
+      emit("select", node.id);
+    emit("gestureStart");
+  });
+  graph.on("blank:mousedown", ({ x, y, e }) => {
+    if (!props.readonly && e.button === 0 && !transform)
+      marquee.value = { x, y, width: 0, height: 0 };
+  });
+  window.addEventListener("mouseup", finish);
+  window.addEventListener("mousemove", pointerMove);
   graph.on("node:change:position", ({ node }) => {
     if (!syncing && !props.readonly) {
       const { x, y } = node.position();
+      const original = props.document.elements.find(
+        (item) => item.id === node.id,
+      );
+      if (original) {
+        const dx = x - original.x,
+          dy = y - original.y;
+        for (const id of props.selectedIds || []) {
+          if (id !== node.id) {
+            const item = props.document.elements.find((v) => v.id === id);
+            if (item) emit("move", id, item.x + dx, item.y + dy);
+          }
+        }
+      }
       emit("move", node.id, x, y);
     }
   });
   synchronize();
 });
-watch(() => [props.document, props.selectedId], synchronize, { deep: true });
-onBeforeUnmount(() => graph?.dispose());
+watch(
+  () => [props.document, props.selectedId, props.selectedIds, props.samples, props.history],
+  synchronize,
+  { deep: true },
+);
+onBeforeUnmount(() => {
+  graph?.dispose();
+  window.removeEventListener("mouseup", finish);
+  window.removeEventListener("mousemove", pointerMove);
+});
+const marquee = ref<{ x: number; y: number; width: number; height: number }>();
+const activeItem = computed(() =>
+  props.document.elements.find((e) => e.id === props.selectedId),
+);
+let transform:
+  { kind: string; item: DiagramElement; x: number; y: number } | undefined;
+function startTransform(event: MouseEvent, kind: string) {
+  if (props.readonly || !activeItem.value) return;
+  event.preventDefault();
+  event.stopPropagation();
+  marquee.value = undefined;
+  transform = {
+    kind,
+    item: { ...activeItem.value },
+    x: event.clientX,
+    y: event.clientY,
+  };
+  emit("gestureStart");
+}
+function pointerMove(event: MouseEvent) {
+  if (props.readonly) return;
+  if (transform) {
+    const { item, kind, x, y } = transform;
+    if (kind === "resize")
+      emit("transform", item.id, {
+        width: Math.max(20, item.width + event.clientX - x),
+        height: Math.max(20, item.height + event.clientY - y),
+      });
+    else {
+      const rect = container.value!.getBoundingClientRect();
+      const angle =
+        (Math.atan2(
+          event.clientY - rect.top - item.y - item.height / 2,
+          event.clientX - rect.left - item.x - item.width / 2,
+        ) *
+          180) /
+          Math.PI +
+        90;
+      emit("transform", item.id, { rotation: Math.round((angle + 360) % 360) });
+    }
+  }
+  if (marquee.value) {
+    const rect = container.value!.getBoundingClientRect();
+    marquee.value.width = event.clientX - rect.left - marquee.value.x;
+    marquee.value.height = event.clientY - rect.top - marquee.value.y;
+  }
+}
+function finish() {
+  if (props.readonly) return;
+  if (marquee.value && !transform) {
+    const m = marquee.value;
+    const x = Math.min(m.x, m.x + m.width),
+      y = Math.min(m.y, m.y + m.height);
+    emit(
+      "selectMany",
+      props.document.elements
+        .filter(
+          (e) =>
+            e.x >= x &&
+            e.y >= y &&
+            e.x + e.width <= x + Math.abs(m.width) &&
+            e.y + e.height <= y + Math.abs(m.height),
+        )
+        .map((e) => e.id),
+    );
+    marquee.value = undefined;
+  }
+  transform = undefined;
+  emit("gestureEnd");
+}
 </script>
 
 <template>
-  <div
-    ref="container"
-    class="diagram-canvas"
-    data-testid="canvas"
-    aria-label="组态画布"
-  ></div>
+  <div style="position: relative">
+    <div
+      ref="container"
+      class="diagram-canvas"
+      data-testid="canvas"
+      aria-label="组态画布"
+    ></div>
+    <div
+      v-if="marquee"
+      class="marquee"
+      :style="{
+        left: Math.min(marquee.x, marquee.x + marquee.width) + 'px',
+        top: Math.min(marquee.y, marquee.y + marquee.height) + 'px',
+        width: Math.abs(marquee.width) + 'px',
+        height: Math.abs(marquee.height) + 'px',
+      }"
+    ></div>
+    <div
+      v-if="activeItem && !readonly"
+      class="transform-outline"
+      :style="{
+        left: activeItem.x + 'px',
+        top: activeItem.y + 'px',
+        width: activeItem.width + 'px',
+        height: activeItem.height + 'px',
+        transform: `rotate(${activeItem.rotation || 0}deg)`,
+      }"
+    >
+      <button
+        aria-label="调整大小"
+        class="resize-handle"
+        @mousedown="startTransform($event, 'resize')"
+      ></button
+      ><button
+        aria-label="旋转图元"
+        class="rotate-handle"
+        @mousedown="startTransform($event, 'rotate')"
+      ></button>
+    </div>
+  </div>
 </template>
+<style scoped>
+.marquee {
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid #0d9488;
+  background: #0d948822;
+}
+.transform-outline {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed #0d9488;
+  box-sizing: border-box;
+}
+.transform-outline button {
+  position: absolute;
+  pointer-events: auto;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #0d9488;
+  background: white;
+  padding: 0;
+}
+.resize-handle {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+.rotate-handle {
+  left: calc(50% - 6px);
+  top: -24px;
+  border-radius: 50%;
+  cursor: grab;
+}
+</style>
