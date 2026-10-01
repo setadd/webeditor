@@ -141,3 +141,39 @@ test("读取和存储失败时保留画面及上次有效保存", async ({ page 
     /data:image\/png;base64/,
   );
 });
+test("不同页面背景随发布快照保存并按逻辑画布尺寸显示", async ({ page }) => {
+  await page.goto("/");
+  await page
+    .getByLabel("上传背景图", { exact: true })
+    .setInputFiles({ name: "floor.png", mimeType: "image/png", buffer: png });
+  await expect(page.getByTestId("background-image")).toHaveCSS(
+    "background-image",
+    /data:image\/png;base64/,
+  );
+  await page.getByRole("button", { name: "新建页面", exact: true }).click();
+  await page.getByRole("dialog").getByLabel("页面名称").fill("第二页");
+  await page.getByRole("button", { name: "创建页面", exact: true }).click();
+  await page.getByRole("button", { name: "发布到本机", exact: true }).click();
+  await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
+  await page
+    .getByLabel("切换页面", { exact: true })
+    .selectOption({ label: "未命名组态" });
+  await expect(page.getByTestId("background-image")).toHaveCSS(
+    "background-image",
+    /data:image\/png;base64/,
+  );
+  await expect(page.getByTestId("background-color")).toHaveCSS(
+    "width",
+    "960px",
+  );
+  await expect(page.getByLabel("上传背景图", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await page
+    .getByLabel("切换页面", { exact: true })
+    .selectOption({ label: "未命名组态" });
+  await expect(page.getByTestId("background-image")).toHaveCSS(
+    "background-image",
+    /data:image\/png;base64/,
+  );
+});

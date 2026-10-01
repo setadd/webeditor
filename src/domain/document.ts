@@ -177,9 +177,22 @@ export function parseDocument(value: unknown): DiagramDocument {
     if (!Array.isArray(value.otherPages)) return invalid();
     const pageIds = new Set([value.page.id]);
     for (const page of value.otherPages) {
-      if (!record(page) || !record(page.page) || !nonEmpty(page.page.id) || pageIds.has(page.page.id)) return invalid();
+      if (
+        !record(page) ||
+        !record(page.page) ||
+        !nonEmpty(page.page.id) ||
+        pageIds.has(page.page.id)
+      )
+        return invalid();
       pageIds.add(page.page.id);
-      parseDocument({ ...page, formatVersion: 1, id: value.id, savedAt: null, otherPages: undefined });
+      parseDocument({
+        ...page,
+        formatVersion: 1,
+        id: value.id,
+        assets: value.assets,
+        savedAt: null,
+        otherPages: undefined,
+      });
       for (const element of page.elements as DiagramElement[]) {
         if (ids.has(element.id)) return invalid();
         ids.add(element.id);

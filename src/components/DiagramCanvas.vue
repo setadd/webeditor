@@ -28,7 +28,9 @@ let graph: Graph | undefined;
 let syncing = false;
 
 function appearance(item: DiagramElement): CellAttrs {
-  const active = !props.readonly && (props.selectedIds || [props.selectedId]).includes(item.id);
+  const active =
+    !props.readonly &&
+    (props.selectedIds || [props.selectedId]).includes(item.id);
   if (item.kind === "text") {
     return {
       body: {
@@ -190,13 +192,19 @@ onMounted(() => {
     grid: { size: 1, visible: false },
     background: { color: "transparent" },
     translating: { restrict: true },
-    interacting: () => ({ nodeMovable: !props.readonly, magnetConnectable: false }),
+    interacting: () => ({
+      nodeMovable: !props.readonly,
+      magnetConnectable: false,
+    }),
     connecting: { snap: false, allowBlank: false },
     panning: false,
     mousewheel: false,
   });
   graph.on("node:mousedown", ({ node, e }) => {
-    if (props.readonly) { emit("select", node.id); return; }
+    if (props.readonly) {
+      emit("select", node.id);
+      return;
+    }
     if (e.shiftKey || e.ctrlKey || e.metaKey) emit("select", node.id, true);
     else if (!(props.selectedIds || [props.selectedId]).includes(node.id))
       emit("select", node.id);
@@ -318,7 +326,13 @@ function finish() {
 </script>
 
 <template>
-  <div style="position: relative">
+  <div
+    style="position: relative"
+    :style="{
+      width: document.page.width + 'px',
+      height: document.page.height + 'px',
+    }"
+  >
     <PageBackground :document="document" />
     <div
       ref="container"
