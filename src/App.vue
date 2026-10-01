@@ -20,6 +20,7 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import InteractionPanel from "./components/InteractionPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
@@ -556,6 +557,7 @@ onBeforeUnmount(() => {
             <p>④ 保存你的工作</p>
           </div>
         </div>
+        <InteractionPanel :document="doc" :selected="selected" @change="(id, interaction) => editor.update(id, { interaction })" />
         <DataPanel
           @range="(id, historyMinutes) => editor.update(id, { historyMinutes })"
           :selected="selected"
