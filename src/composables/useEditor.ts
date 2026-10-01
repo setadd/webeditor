@@ -107,7 +107,14 @@ export function useEditor() {
     }
   }
 
+  function mutate(change: () => void) {
+    change();
+    selectedId.value = null;
+    revision.value++;
+  }
+
   return {
+    mutate,
     document,
     selectedId,
     selected,

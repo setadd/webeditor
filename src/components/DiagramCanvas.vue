@@ -5,6 +5,7 @@ import type { DiagramDocument, DiagramElement } from "../domain/document";
 
 const props = defineProps<{
   document: DiagramDocument;
+  readonly?: boolean;
   selectedId: string | null;
 }>();
 const emit = defineEmits<{
@@ -16,7 +17,7 @@ let graph: Graph | undefined;
 let syncing = false;
 
 function appearance(item: DiagramElement): CellAttrs {
-  const active = props.selectedId === item.id;
+  const active = !props.readonly && props.selectedId === item.id;
   if (item.kind === "text") {
     return {
       body: {
@@ -160,7 +161,7 @@ onMounted(() => {
     grid: { size: 1, visible: false },
     background: { color: "#ffffff" },
     translating: { restrict: true },
-    interacting: { nodeMovable: true, magnetConnectable: false },
+    interacting: () => ({ nodeMovable: !props.readonly, magnetConnectable: false }),
     connecting: { snap: false, allowBlank: false },
     panning: false,
     mousewheel: false,
@@ -169,7 +170,7 @@ onMounted(() => {
   graph.on("node:mousedown", ({ node }) => emit("select", node.id));
   graph.on("blank:click", () => emit("select", null));
   graph.on("node:change:position", ({ node }) => {
-    if (!syncing) {
+    if (!syncing && !props.readonly) {
       const { x, y } = node.position();
       emit("move", node.id, x, y);
     }
