@@ -3,10 +3,15 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
 
+import { dataAppearance, chartMarkup } from "./dataAppearance";
+import type { Sample, HistorySample } from "../data/useMockData";
+
 const props = defineProps<{
   document: DiagramDocument;
   selectedId: string | null;
   selectedIds?: string[];
+  samples?: Record<string, Sample>;
+  history?: Record<string, HistorySample[]>;
 }>();
 const emit = defineEmits<{
   select: [id: string | null, additive?: boolean];
@@ -107,6 +112,18 @@ function appearance(item: DiagramElement): CellAttrs {
   };
 }
 
+function effectiveAppearance(item: DiagramElement) {
+  const base = appearance(item);
+  const data = dataAppearance(
+    item,
+    props.samples?.[item.binding || ""],
+    props.history?.[item.binding || ""],
+  );
+  for (const [key, value] of Object.entries(data))
+    base[key] = { ...base[key], ...value };
+  return base;
+}
+
 function addNode(item: DiagramElement): Node {
   return graph!.addNode({
     id: item.id,
@@ -130,7 +147,10 @@ function addNode(item: DiagramElement): Node {
         }
       : {}),
     angle: item.rotation || 0,
-    attrs: appearance(item),
+    ...(item.kind === "chart" || item.kind === "metric"
+      ? { markup: chartMarkup }
+      : {}),
+    attrs: effectiveAppearance(item),
   });
 }
 
@@ -153,7 +173,7 @@ function synchronize() {
         node.position(item.x, item.y);
       node.resize(item.width, item.height);
       node.rotate(item.rotation || 0, { absolute: true });
-      node.setAttrs(appearance(item));
+      node.setAttrs(effectiveAppearance(item));
     }
   } finally {
     syncing = false;
@@ -207,7 +227,7 @@ onMounted(() => {
   synchronize();
 });
 watch(
-  () => [props.document, props.selectedId, props.selectedIds],
+  () => [props.document, props.selectedId, props.selectedIds, props.samples, props.history],
   synchronize,
   { deep: true },
 );

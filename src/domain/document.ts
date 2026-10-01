@@ -1,4 +1,4 @@
-export type ElementKind = "device" | "text";
+export type ElementKind = "device" | "text" | "metric" | "chart";
 
 export interface DiagramElement {
   id: string;
@@ -11,6 +11,8 @@ export interface DiagramElement {
   height: number;
   color: string;
   rotation?: number;
+  binding?: string;
+  historyMinutes?: number;
 }
 
 export interface DiagramDocument {
@@ -45,13 +47,19 @@ export function createElement(
 ): DiagramElement {
   const index = doc.elements.filter((item) => item.kind === kind).length + 1;
   const offset = (doc.elements.length % 8) * 28;
-  const width = kind === "device" ? 184 : 240;
-  const height = kind === "device" ? 112 : 48;
+  const width = kind === "chart" ? 320 : kind === "device" ? 184 : 240;
+  const height = kind === "chart" ? 180 : kind === "text" ? 48 : 112;
+  const title = {
+    device: "设备",
+    text: "文字",
+    metric: "指标",
+    chart: "趋势图",
+  }[kind];
   return {
     id: crypto.randomUUID(),
     kind,
-    name: kind === "device" ? `设备 ${index}` : `文字 ${index}`,
-    text: kind === "device" ? `设备 ${index}` : "在右侧编辑显示文字",
+    name: `${title} ${index}`,
+    text: kind === "text" ? "在右侧编辑显示文字" : `${title} ${index}`,
     x: Math.min(96 + offset, doc.page.width - width),
     y: Math.min(96 + offset, doc.page.height - height),
     width,
@@ -103,7 +111,10 @@ export function parseDocument(value: unknown): DiagramDocument {
       !record(item) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
-      !["device", "text"].includes(String(item.kind)) ||
+      !["device", "text", "metric", "chart"].includes(String(item.kind)) ||
+      (item.historyMinutes !== undefined &&
+        ![15, 60].includes(Number(item.historyMinutes))) ||
+      (item.binding !== undefined && typeof item.binding !== "string") ||
       typeof item.name !== "string" ||
       typeof item.text !== "string" ||
       typeof item.color !== "string" ||
