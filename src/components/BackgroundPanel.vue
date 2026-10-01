@@ -59,8 +59,8 @@ async function upload(event: Event) {
         @change="upload"
     /></label>
     <small
-      >PNG / JPEG / WebP；单张 ≤ 5 MB，≤ 2500
-      万像素。项目最多 100 张 / 总大小 25 MB。图片随项目保存在本机。</small
+      >PNG / JPEG / WebP；单张 ≤ 5 MB，≤ 2500 万像素。项目最多 100 张 / 总大小
+      25 MB。图片随项目保存在本机。</small
     >
     <label
       >图片模式<select

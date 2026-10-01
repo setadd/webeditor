@@ -1,5 +1,10 @@
 import { parseDocument, type DiagramDocument } from "../domain/document";
-import { MAX_IMAGE_BYTES, MAX_ASSETS, MAX_TOTAL_IMAGE_BYTES, type ImageAsset } from "../domain/assets";
+import {
+  MAX_IMAGE_BYTES,
+  MAX_ASSETS,
+  MAX_TOTAL_IMAGE_BYTES,
+  type ImageAsset,
+} from "../domain/assets";
 import { mockDataProvider } from "../data/useMockData";
 export const MAX_PROJECT_BYTES = 50 * 1024 * 1024;
 async function verifyImage(asset: ImageAsset): Promise<number> {

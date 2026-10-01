@@ -88,7 +88,8 @@ async function upload(event: Event, isDefault: boolean) {
         @change="upload($event, false)"
     /></label>
     <small
-      >请先设置默认图片。PNG / JPEG / WebP，单张 ≤ 5 MB / 2500 万像素。项目最多 100 张 / 总大小 25 MB。</small
+      >请先设置默认图片。PNG / JPEG / WebP，单张 ≤ 5 MB / 2500 万像素。项目最多
+      100 张 / 总大小 25 MB。</small
     >
     <div class="image-previews">
       <button

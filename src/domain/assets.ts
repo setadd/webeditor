@@ -32,10 +32,18 @@ export function isImageAsset(value: unknown): value is ImageAsset {
     new RegExp(`^data:${a.mime};base64,[A-Za-z0-9+/]+={0,2}$`).test(a.dataUrl)
   );
 }
-export async function readImageAsset(file: File, assets: Record<string, ImageAsset> = {}): Promise<ImageAsset> {
-  if(Object.keys(assets).length >= MAX_ASSETS) throw new Error('项目最多支持 100 张图片。');
-  const total = Object.values(assets).reduce((sum, asset)=>sum + atob(asset.dataUrl.split(',')[1]!).length,0);
-  if(total + file.size > MAX_TOTAL_IMAGE_BYTES) throw new Error('项目图片原始总大小不能超过 25 MB。');
+export async function readImageAsset(
+  file: File,
+  assets: Record<string, ImageAsset> = {},
+): Promise<ImageAsset> {
+  if (Object.keys(assets).length >= MAX_ASSETS)
+    throw new Error("项目最多支持 100 张图片。");
+  const total = Object.values(assets).reduce(
+    (sum, asset) => sum + atob(asset.dataUrl.split(",")[1]!).length,
+    0,
+  );
+  if (total + file.size > MAX_TOTAL_IMAGE_BYTES)
+    throw new Error("项目图片原始总大小不能超过 25 MB。");
   if (!types.includes(file.type))
     throw new Error("仅支持 PNG、JPEG、WebP 静态图片。");
   if (file.size > MAX_IMAGE_BYTES)
