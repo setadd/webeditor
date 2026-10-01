@@ -1,0 +1,482 @@
+<script setup lang="ts">
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import {
+  Plus,
+  FolderOpened,
+  DocumentChecked,
+  Cpu,
+  EditPen,
+  ArrowRight,
+  Grid,
+  Files,
+  Pointer,
+  InfoFilled,
+} from "@element-plus/icons-vue";
+import DiagramCanvas from "./components/DiagramCanvas.vue";
+import { useEditor } from "./composables/useEditor";
+import { isColor, type DiagramElement } from "./domain/document";
+
+const editor = useEditor();
+const {
+  document: doc,
+  selected,
+  selectedId,
+  loading,
+  saving,
+  error,
+  dirty,
+  loadBlocked,
+  saveState,
+} = editor;
+const newPageVisible = ref(false);
+const newPage = reactive({ name: "未命名组态", width: 960, height: 640 });
+const newPageValid = computed(
+  () =>
+    newPage.name.trim().length > 0 &&
+    Number.isInteger(newPage.width) &&
+    newPage.width >= 400 &&
+    newPage.width <= 3840 &&
+    Number.isInteger(newPage.height) &&
+    newPage.height >= 300 &&
+    newPage.height <= 2160,
+);
+const colorInput = ref("#0d9488");
+const palette = [
+  "#0d9488",
+  "#2563eb",
+  "#7c3aed",
+  "#e59b20",
+  "#e35050",
+  "#334155",
+];
+watch(
+  () => [selected.value?.id, selected.value?.color],
+  () => {
+    colorInput.value = selected.value?.color || "#0d9488";
+  },
+);
+const lastSaved = computed(() =>
+  doc.value.savedAt
+    ? new Date(doc.value.savedAt).toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "尚无本机保存",
+);
+const busy = computed(() => loading.value || saving.value);
+
+function changeText(field: "name" | "text", value: string) {
+  if (selected.value) editor.update(selected.value.id, { [field]: value });
+}
+function changePosition(field: "x" | "y", value: number | undefined) {
+  if (selected.value && value !== undefined && Number.isFinite(value))
+    editor.update(selected.value.id, { [field]: value });
+}
+function changeColor(value: string) {
+  colorInput.value = value;
+  if (selected.value && isColor(value))
+    editor.update(selected.value.id, { color: value.toLowerCase() });
+}
+function select(item: DiagramElement) {
+  selectedId.value = item.id;
+}
+async function confirmReplacement(): Promise<boolean> {
+  if (!dirty.value || !doc.value.elements.length) return true;
+  try {
+    await ElMessageBox.confirm(
+      "当前画布有未保存的修改。继续后将离开这些修改。",
+      "保留当前修改？",
+      {
+        confirmButtonText: "继续",
+        cancelButtonText: "返回编辑",
+        type: "warning",
+      },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function openSaved() {
+  if (await confirmReplacement()) await editor.open();
+}
+async function openNewPage() {
+  if (await confirmReplacement()) newPageVisible.value = true;
+}
+function createPage() {
+  if (!newPageValid.value) return;
+  editor.create(newPage.name.trim(), newPage.width, newPage.height);
+  newPageVisible.value = false;
+}
+async function save() {
+  if (await editor.save()) ElMessage.success("已保存到本机");
+}
+function beforeUnload(event: BeforeUnloadEvent) {
+  if (dirty.value && doc.value.elements.length) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+}
+onMounted(() => {
+  void editor.open();
+  window.addEventListener("beforeunload", beforeUnload);
+});
+onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
+</script>
+
+<template>
+  <div class="editor-app">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark"
+          ><el-icon><Grid /></el-icon></span
+        ><strong>组态工作台</strong><span class="brand-divider"></span
+        ><span class="workspace-label">本机项目</span>
+      </div>
+      <div class="header-right">
+        <span class="local-badge"><i></i> 本地工作空间</span
+        ><span class="avatar">工</span>
+      </div>
+    </header>
+    <section class="project-bar">
+      <div class="project-heading">
+        <span class="project-icon"
+          ><el-icon><Files /></el-icon
+        ></span>
+        <div>
+          <div class="breadcrumb">
+            我的工作空间 <el-icon><ArrowRight /></el-icon> 组态页面
+          </div>
+          <div class="title-row">
+            <h1 data-testid="page-title">{{ doc.name }}</h1>
+            <span
+              data-testid="save-state"
+              class="save-state"
+              :class="{ unsaved: dirty }"
+              >{{ saveState }}</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="project-actions">
+        <el-button :icon="Plus" :disabled="busy" @click="openNewPage"
+          >新建页面</el-button
+        >
+        <el-button :icon="FolderOpened" :disabled="busy" @click="openSaved"
+          >打开本机</el-button
+        >
+        <el-button
+          type="primary"
+          :icon="DocumentChecked"
+          :loading="saving"
+          :disabled="loading || loadBlocked"
+          @click="save"
+          >保存到本机</el-button
+        >
+      </div>
+    </section>
+    <div v-if="error" class="error-banner" role="alert">
+      <el-icon><InfoFilled /></el-icon><span>{{ error }}</span
+      ><el-button v-if="loadBlocked" size="small" @click="editor.open"
+        >重新读取</el-button
+      >
+    </div>
+    <main class="editor-layout" v-loading="loading">
+      <aside class="library-panel">
+        <div class="panel-title">
+          组件库 <span class="tiny-badge">基础</span>
+        </div>
+        <div class="library-content">
+          <div class="section-label">常用图元</div>
+          <div class="component-grid">
+            <button
+              aria-label="添加设备"
+              class="component-button"
+              :disabled="loading || loadBlocked"
+              @click="editor.add('device')"
+            >
+              <span class="component-preview device-preview"
+                ><el-icon><Cpu /></el-icon></span
+              ><strong>设备</strong><small>设备占位图元</small>
+            </button>
+            <button
+              aria-label="添加文字"
+              class="component-button"
+              :disabled="loading || loadBlocked"
+              @click="editor.add('text')"
+            >
+              <span class="component-preview text-preview">T<span>t</span></span
+              ><strong>文字</strong><small>标题与说明</small>
+            </button>
+          </div>
+          <p class="library-tip">
+            <el-icon><InfoFilled /></el-icon> 点击添加，再拖动到合适位置
+          </p>
+        </div>
+        <div class="panel-title layers-title">
+          页面图元 <span class="count">{{ doc.elements.length }}</span>
+        </div>
+        <div class="layer-list">
+          <div v-if="!doc.elements.length" class="empty-layers">
+            图元会显示在这里
+          </div>
+          <button
+            v-for="item in doc.elements"
+            :key="item.id"
+            :aria-label="`选择图元 ${item.name}`"
+            :aria-pressed="selectedId === item.id"
+            :class="['layer-item', { active: selectedId === item.id }]"
+            @click="select(item)"
+          >
+            <el-icon
+              ><Cpu v-if="item.kind === 'device'" /><EditPen v-else /></el-icon
+            ><span>{{ item.name || "未命名图元" }}</span
+            ><span class="layer-dot" :style="{ background: item.color }"></span>
+          </button>
+        </div>
+        <div class="local-note">
+          <span class="note-icon"
+            ><el-icon><FolderOpened /></el-icon
+          ></span>
+          <div>
+            <strong>保存在当前浏览器</strong>
+            <p>同一电脑、同一浏览器中<br />可重新打开上次保存的页面</p>
+          </div>
+        </div>
+      </aside>
+      <section class="canvas-workspace" aria-label="编辑工作区">
+        <div class="canvas-toolbar">
+          <span class="tool-selected"
+            ><el-icon><Pointer /></el-icon> 选择 / 移动</span
+          ><span class="toolbar-divider"></span
+          ><span class="toolbar-hint">拖动图元调整位置</span
+          ><span class="page-size" data-testid="page-size"
+            >{{ doc.page.width }} × {{ doc.page.height }}</span
+          >
+        </div>
+        <div class="canvas-scroll">
+          <div class="sheet-wrap" :style="{ width: `${doc.page.width}px` }">
+            <div class="sheet-caption">
+              <span><i></i> {{ doc.name }}</span
+              ><span>画布 · px</span>
+            </div>
+            <div
+              class="canvas-sheet"
+              :style="{
+                width: `${doc.page.width}px`,
+                height: `${doc.page.height}px`,
+              }"
+            >
+              <DiagramCanvas
+                :document="doc"
+                :selected-id="selectedId"
+                @select="selectedId = $event"
+                @move="(id, x, y) => editor.update(id, { x, y })"
+              />
+              <div v-if="!doc.elements.length" class="canvas-empty">
+                <div class="empty-illustration">
+                  <el-icon><Grid /></el-icon><span>+</span>
+                </div>
+                <h2>从第一个图元开始</h2>
+                <p>在左侧添加设备或文字，构建你的组态页面</p>
+                <span class="empty-step"
+                  >添加图元 <b>→</b> 配置属性 <b>→</b> 保存到本机</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="canvas-footer">
+          <span
+            ><i class="status-dot"></i>
+            {{
+              selected
+                ? `已选择：${selected.name || "未命名图元"}`
+                : "就绪，选择一个图元开始编辑"
+            }}</span
+          ><span>{{ doc.elements.length }} 个图元 <b>·</b> 100%</span>
+        </footer>
+      </section>
+      <aside class="properties-panel">
+        <div class="panel-title">
+          属性配置
+          <span class="tiny-badge">{{ selected ? "图元" : "页面" }}</span>
+        </div>
+        <template v-if="selected">
+          <div class="selection-heading">
+            <span class="selection-icon"
+              ><el-icon
+                ><Cpu v-if="selected.kind === 'device'" /><EditPen
+                  v-else /></el-icon
+            ></span>
+            <div>
+              <strong>{{
+                selected.kind === "device" ? "设备图元" : "文字图元"
+              }}</strong
+              ><small>修改后即时应用到画布</small>
+            </div>
+          </div>
+          <el-form label-position="top" class="property-form" @submit.prevent>
+            <div class="property-section-title">基本信息</div>
+            <el-form-item label="图元名称" for="element-name"
+              ><el-input
+                id="element-name"
+                :model-value="selected.name"
+                maxlength="60"
+                @update:model-value="changeText('name', $event)"
+            /></el-form-item>
+            <el-form-item label="显示文字" for="element-text"
+              ><el-input
+                id="element-text"
+                :model-value="selected.text"
+                maxlength="160"
+                @update:model-value="changeText('text', $event)"
+            /></el-form-item>
+            <div class="property-section-title separated">位置</div>
+            <div class="position-grid">
+              <el-form-item label="X 坐标" for="position-x"
+                ><el-input-number
+                  id="position-x"
+                  :model-value="selected.x"
+                  :min="0"
+                  :max="doc.page.width - selected.width"
+                  :precision="0"
+                  controls-position="right"
+                  @update:model-value="changePosition('x', $event)"
+              /></el-form-item>
+              <el-form-item label="Y 坐标" for="position-y"
+                ><el-input-number
+                  id="position-y"
+                  :model-value="selected.y"
+                  :min="0"
+                  :max="doc.page.height - selected.height"
+                  :precision="0"
+                  controls-position="right"
+                  @update:model-value="changePosition('y', $event)"
+              /></el-form-item>
+            </div>
+            <p class="field-hint">从画布左上角计算，单位为 px</p>
+            <div class="property-section-title separated">外观</div>
+            <el-form-item
+              label="基础颜色"
+              for="base-color"
+              :error="isColor(colorInput) ? '' : '请输入完整的六位十六进制颜色'"
+            >
+              <div class="color-control">
+                <input
+                  aria-label="选择基础颜色"
+                  type="color"
+                  :value="selected.color"
+                  @input="
+                    changeColor(($event.target as HTMLInputElement).value)
+                  "
+                /><el-input
+                  id="base-color"
+                  :model-value="colorInput"
+                  maxlength="7"
+                  @update:model-value="changeColor"
+                />
+              </div>
+            </el-form-item>
+            <div class="palette">
+              <button
+                v-for="color in palette"
+                :key="color"
+                :aria-label="`使用颜色 ${color}`"
+                :class="{ chosen: selected.color === color }"
+                :style="{ background: color }"
+                @click="changeColor(color)"
+              ></button>
+            </div>
+            <div class="property-section-title separated">图元标识</div>
+            <el-input
+              aria-label="图元标识"
+              :model-value="selected.id"
+              readonly
+              class="id-input"
+            />
+            <p class="field-hint">唯一标识随页面保存保持不变</p>
+          </el-form>
+        </template>
+        <div v-else class="page-properties">
+          <span class="page-info-icon"
+            ><el-icon><Files /></el-icon
+          ></span>
+          <h3>{{ doc.name }}</h3>
+          <p>选择画布中的图元<br />查看和编辑它的属性</p>
+          <dl>
+            <dt>画布尺寸</dt>
+            <dd>{{ doc.page.width }} × {{ doc.page.height }}</dd>
+            <dt>图元数量</dt>
+            <dd>{{ doc.elements.length }} 个</dd>
+            <dt>保存位置</dt>
+            <dd>当前浏览器</dd>
+          </dl>
+          <div class="property-help">
+            <strong>开始编排</strong>
+            <p>① 添加设备或文字</p>
+            <p>② 拖动到目标位置</p>
+            <p>③ 在这里调整属性</p>
+            <p>④ 保存你的工作</p>
+          </div>
+        </div>
+        <div class="property-footer">
+          <el-icon><DocumentChecked /></el-icon> {{ lastSaved }}
+        </div>
+      </aside>
+    </main>
+    <el-dialog
+      v-model="newPageVisible"
+      title="新建组态页面"
+      width="440px"
+      :close-on-click-modal="false"
+    >
+      <p class="dialog-intro">设置页面名称和画布尺寸，开始新的编排。</p>
+      <el-form label-position="top" @submit.prevent="createPage">
+        <el-form-item label="页面名称" for="new-page-name"
+          ><el-input
+            id="new-page-name"
+            v-model="newPage.name"
+            maxlength="60"
+            autofocus
+        /></el-form-item>
+        <div class="position-grid">
+          <el-form-item label="画布宽度" for="new-page-width"
+            ><el-input-number
+              id="new-page-width"
+              v-model="newPage.width"
+              :min="400"
+              :max="3840"
+              :precision="0"
+              controls-position="right" /></el-form-item
+          ><el-form-item label="画布高度" for="new-page-height"
+            ><el-input-number
+              id="new-page-height"
+              v-model="newPage.height"
+              :min="300"
+              :max="2160"
+              :precision="0"
+              controls-position="right"
+          /></el-form-item>
+        </div>
+        <p class="field-hint">
+          宽度 400–3840 px，高度 300–2160 px。保存新页面将替换上次本机保存。
+        </p>
+      </el-form>
+      <template #footer
+        ><el-button @click="newPageVisible = false">取消</el-button
+        ><el-button type="primary" :disabled="!newPageValid" @click="createPage"
+          >创建页面</el-button
+        ></template
+      >
+    </el-dialog>
+  </div>
+</template>
