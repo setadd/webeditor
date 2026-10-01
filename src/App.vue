@@ -20,6 +20,7 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import RulesPanel from "./components/RulesPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
@@ -48,7 +49,7 @@ const {
 const publication = usePublication(doc);
 const { mode, runtime, publishing, publicationError } = publication;
 const pages = usePages(doc, (change) => { editor.mutate(change); editor.clearSelection(); });
-const { samples, history } = useMockData(doc);
+const { samples, history } = useMockData(doc, undefined, computed(() => mode.value === "edit"));
 const newPageVisible = ref(false);
 const newPage = reactive({ name: "未命名组态", width: 960, height: 640 });
 const newPageValid = computed(
@@ -556,6 +557,7 @@ onBeforeUnmount(() => {
             <p>④ 保存你的工作</p>
           </div>
         </div>
+        <RulesPanel :selected="selected" @change="(id, rules) => editor.update(id, { rules })" />
         <DataPanel
           @range="(id, historyMinutes) => editor.update(id, { historyMinutes })"
           :selected="selected"

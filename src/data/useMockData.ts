@@ -1,3 +1,4 @@
+import { rulePointIds } from "../domain/rules";
 import { shallowRef, watch, onScopeDispose, type Ref } from "vue";
 import type { DiagramDocument } from "../domain/document";
 export interface Point {
@@ -100,23 +101,27 @@ export function setMockPoint(id: string, value: number, available = true) {
 export function useMockData(
   document: Ref<DiagramDocument>,
   provider: DataProvider = mockDataProvider,
+  enabled?: Ref<boolean>,
 ) {
   const current = shallowRef<Record<string, Sample>>({});
   const history = shallowRef<Record<string, HistorySample[]>>({});
   let unsubscribe = () => {};
   watch(
     () => [
+      enabled?.value,
       document.value.page.id,
+      ...document.value.elements.flatMap(e => rulePointIds(e.rules)),
       ...document.value.elements.map((e) => e.binding || ""),
     ],
     () => {
       unsubscribe();
       current.value = {};
       history.value = {};
+      if (enabled && !enabled.value) return;
       const ids = [
         ...new Set(
           document.value.elements
-            .map((e) => e.binding)
+            .flatMap((e) => [e.binding, ...rulePointIds(e.rules)])
             .filter((id): id is string => !!id),
         ),
       ];

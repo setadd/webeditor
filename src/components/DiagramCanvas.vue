@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
+import { evaluateRules } from "../domain/rules";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
 
 import { dataAppearance, chartMarkup } from "./dataAppearance";
@@ -114,6 +115,8 @@ function appearance(item: DiagramElement): CellAttrs {
 }
 
 function effectiveAppearance(item: DiagramElement) {
+  const effective = evaluateRules({ color: item.color }, item.rules, props.samples, item.binding);
+  item = {...item, color: effective.color || item.color};
   const base = appearance(item);
   const data = dataAppearance(
     item,
@@ -318,6 +321,7 @@ function finish() {
       data-testid="canvas"
       aria-label="组态画布"
     ></div>
+    <span v-for="item in document.elements.filter(e => evaluateRules({color:e.color}, e.rules, samples, e.binding).abnormal)" :key="`error-${item.id}`" role="status" class="data-abnormal" :style="{position:'absolute',left:item.x+'px',top:Math.max(0,item.y-22)+'px',color:'#b91c1c',background:'#fff1f2',fontSize:'12px',pointerEvents:'none'}">数据异常：{{item.name}}</span>
     <div
       v-if="marquee"
       class="marquee"
