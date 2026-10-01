@@ -20,6 +20,8 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import DataPanel from "./components/DataPanel.vue";
+import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
 import { useEditor } from "./composables/useEditor";
 import { isColor, type DiagramElement } from "./domain/document";
@@ -36,6 +38,7 @@ const {
   loadBlocked,
   saveState,
 } = editor;
+const { samples, history } = useMockData(doc);
 const newPageVisible = ref(false);
 const newPage = reactive({ name: "未命名组态", width: 960, height: 640 });
 const newPageValid = computed(
@@ -198,6 +201,17 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
           <div class="section-label">常用图元</div>
           <div class="component-grid">
             <button
+              v-for="kind in ['metric', 'chart'] as const"
+              :key="kind"
+              :aria-label="kind === 'metric' ? '添加指标' : '添加趋势图'"
+              class="component-button"
+              :disabled="loading || loadBlocked"
+              @click="editor.add(kind)"
+            >
+              <strong>{{ kind === "metric" ? "指标" : "趋势图" }}</strong
+              ><small>实时与历史数据</small>
+            </button>
+            <button
               aria-label="添加设备"
               class="component-button"
               :disabled="loading || loadBlocked"
@@ -277,6 +291,8 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
             >
               <DiagramCanvas
                 :document="doc"
+                :samples="samples"
+                :history="history"
                 :selected-id="selectedId"
                 @select="selectedId = $event"
                 @move="(id, x, y) => editor.update(id, { x, y })"
@@ -319,7 +335,12 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
             ></span>
             <div>
               <strong>{{
-                selected.kind === "device" ? "设备图元" : "文字图元"
+                {
+                  device: "设备图元",
+                  text: "文字图元",
+                  metric: "指标图元",
+                  chart: "趋势图元",
+                }[selected.kind]
               }}</strong
               ><small>修改后即时应用到画布</small>
             </div>
@@ -428,6 +449,11 @@ onBeforeUnmount(() => window.removeEventListener("beforeunload", beforeUnload));
             <p>④ 保存你的工作</p>
           </div>
         </div>
+        <DataPanel
+          @range="(id, historyMinutes) => editor.update(id, { historyMinutes })"
+          :selected="selected"
+          @bind="(id, binding) => editor.update(id, { binding })"
+        />
         <div class="property-footer">
           <el-icon><DocumentChecked /></el-icon> {{ lastSaved }}
         </div>

@@ -3,9 +3,14 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
 
+import { dataAppearance, chartMarkup } from "./dataAppearance";
+import type { Sample, HistorySample } from "../data/useMockData";
+
 const props = defineProps<{
   document: DiagramDocument;
   selectedId: string | null;
+  samples?: Record<string, Sample>;
+  history?: Record<string, HistorySample[]>;
 }>();
 const emit = defineEmits<{
   select: [id: string | null];
@@ -102,6 +107,18 @@ function appearance(item: DiagramElement): CellAttrs {
   };
 }
 
+function effectiveAppearance(item: DiagramElement) {
+  const base = appearance(item);
+  const data = dataAppearance(
+    item,
+    props.samples?.[item.binding || ""],
+    props.history?.[item.binding || ""],
+  );
+  for (const [key, value] of Object.entries(data))
+    base[key] = { ...base[key], ...value };
+  return base;
+}
+
 function addNode(item: DiagramElement): Node {
   return graph!.addNode({
     id: item.id,
@@ -124,7 +141,10 @@ function addNode(item: DiagramElement): Node {
           ],
         }
       : {}),
-    attrs: appearance(item),
+    ...(item.kind === "chart" || item.kind === "metric"
+      ? { markup: chartMarkup }
+      : {}),
+    attrs: effectiveAppearance(item),
   });
 }
 
@@ -145,7 +165,7 @@ function synchronize() {
       const position = node.position();
       if (position.x !== item.x || position.y !== item.y)
         node.position(item.x, item.y);
-      node.setAttrs(appearance(item));
+      node.setAttrs(effectiveAppearance(item));
     }
   } finally {
     syncing = false;
@@ -176,7 +196,11 @@ onMounted(() => {
   });
   synchronize();
 });
-watch(() => [props.document, props.selectedId], synchronize, { deep: true });
+watch(
+  () => [props.document, props.selectedId, props.samples, props.history],
+  synchronize,
+  { deep: true },
+);
 onBeforeUnmount(() => graph?.dispose());
 </script>
 
