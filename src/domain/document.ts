@@ -1,5 +1,5 @@
 import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
-import { isValidRules, type DisplayRule } from "./rules";
+import { isValidRules, type DisplayRule, type FlowEffect } from "./rules";
 import type { LineGeometry } from "./lines";
 export type ElementKind = "device" | "text" | "metric" | "chart" | "line";
 
@@ -14,6 +14,7 @@ export interface DiagramElement {
   height: number;
   color: string;
   rules?: DisplayRule[];
+  flow?: FlowEffect;
   rotation?: number;
   line?: LineGeometry;
   binding?: string;
@@ -179,6 +180,18 @@ export function parseDocument(value: unknown): DiagramDocument {
     ) {
       return invalid();
     }
+    if (
+      item.flow !== undefined &&
+      (!record(item.flow) ||
+        typeof item.flow.enabled !== "boolean" ||
+        !["forward", "reverse", "stopped"].includes(
+          String(item.flow.direction),
+        ) ||
+        !finite(item.flow.speed) ||
+        item.flow.speed < 0.1 ||
+        item.flow.speed > 10)
+    )
+      return invalid();
     if (item.kind === "line") {
       const l = item.line;
       if (

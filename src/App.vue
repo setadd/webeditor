@@ -24,6 +24,7 @@ import BackgroundPanel from "./components/BackgroundPanel.vue";
 import RulesPanel from "./components/RulesPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
+import FlowPanel from "./components/FlowPanel.vue";
 import LineProperties from "./components/LineProperties.vue";
 import type { LineKind } from "./domain/lines";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
@@ -579,6 +580,10 @@ onBeforeUnmount(() => {
                   />
                 </div>
               </el-form-item>
+              <FlowPanel
+                :selected="selected"
+                @update="editor.update(selected.id, $event)"
+              />
               <LineProperties
                 :selected="selected"
                 @update="editor.update(selected.id, $event)"

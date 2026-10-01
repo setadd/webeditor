@@ -126,12 +126,16 @@ function appearance(item: DiagramElement): CellAttrs {
 
 function effectiveAppearance(item: DiagramElement) {
   const effective = evaluateRules(
-    { color: item.color },
+    { color: item.color, flow: item.flow },
     item.rules,
     props.samples,
     item.binding,
   );
-  item = { ...item, color: effective.color || item.color };
+  item = {
+    ...item,
+    color: effective.color || item.color,
+    flow: effective.flow,
+  };
   const base = appearance(item);
   const data = dataAppearance(
     item,
