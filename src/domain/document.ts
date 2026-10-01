@@ -18,6 +18,7 @@ export interface DiagramElement {
   rotation?: number;
   line?: LineGeometry;
   binding?: string;
+  defaultImageId?: string;
   historyMinutes?: number;
   interaction?: { action: "details" | "navigate"; pageId?: string };
 }
@@ -100,7 +101,10 @@ function nonEmpty(value: unknown): value is string {
 }
 
 // Validate stored data before handing it to the renderer, preserving invalid saves for recovery.
-export function parseDocument(value: unknown, validateReferences = true): DiagramDocument {
+export function parseDocument(
+  value: unknown,
+  validateReferences = true,
+): DiagramDocument {
   const invalid = () => {
     throw new Error("本机文件格式不兼容或内容损坏，原文件未被覆盖。");
   };
@@ -154,7 +158,11 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
   for (const item of value.elements) {
     if (
       !record(item) ||
-      (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
+      (item.interaction !== undefined &&
+        (!record(item.interaction) ||
+          !["details", "navigate"].includes(String(item.interaction.action)) ||
+          (item.interaction.action === "navigate" &&
+            !nonEmpty(item.interaction.pageId)))) ||
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
@@ -192,6 +200,28 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
         !finite(item.flow.speed) ||
         item.flow.speed < 0.1 ||
         item.flow.speed > 10)
+    )
+      return invalid();
+    if (
+      ((item.rules || []) as DisplayRule[]).some(
+        (rule) => rule.effects.imageId,
+      ) &&
+      !item.defaultImageId
+    )
+      return invalid();
+    const imageIds = [
+      item.defaultImageId,
+      ...((item.rules || []) as DisplayRule[]).map(
+        (rule) => rule.effects.imageId,
+      ),
+    ].filter((id) => id !== undefined);
+    if (
+      imageIds.some(
+        (id) =>
+          typeof id !== "string" ||
+          !record(value.assets) ||
+          !Object.hasOwn(value.assets, id),
+      )
     )
       return invalid();
     if (item.kind === "line") {
@@ -236,14 +266,17 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
       )
         return invalid();
       pageIds.add(page.page.id);
-      parseDocument({
-        ...page,
-        formatVersion: 1,
-        id: value.id,
-        assets: value.assets,
-        savedAt: null,
-        otherPages: undefined,
-      }, false);
+      parseDocument(
+        {
+          ...page,
+          formatVersion: 1,
+          id: value.id,
+          assets: value.assets,
+          savedAt: null,
+          otherPages: undefined,
+        },
+        false,
+      );
       for (const element of page.elements as DiagramElement[]) {
         if (ids.has(element.id)) return invalid();
         ids.add(element.id);
@@ -252,10 +285,21 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
   }
   if (validateReferences) {
     const document = value as unknown as DiagramDocument;
-    const pages = [{ page: document.page, elements: document.elements }, ...(document.otherPages || [])];
-    const targets = new Set(pages.map(p => p.page.id));
-    if (pages.some(p => p.elements.some(e => e.interaction?.action === 'navigate' && !targets.has(e.interaction.pageId || '')))) {
-      throw new Error('页面跳转目标不存在，请重新选择目标页面。');
+    const pages = [
+      { page: document.page, elements: document.elements },
+      ...(document.otherPages || []),
+    ];
+    const targets = new Set(pages.map((p) => p.page.id));
+    if (
+      pages.some((p) =>
+        p.elements.some(
+          (e) =>
+            e.interaction?.action === "navigate" &&
+            !targets.has(e.interaction.pageId || ""),
+        ),
+      )
+    ) {
+      throw new Error("页面跳转目标不存在，请重新选择目标页面。");
     }
   }
   return value as unknown as DiagramDocument;

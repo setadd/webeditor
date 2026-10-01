@@ -20,6 +20,8 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import StatesPanel from "./components/StatesPanel.vue";
+import type { ImageAsset } from "./domain/assets";
 import BackgroundPanel from "./components/BackgroundPanel.vue";
 import RulesPanel from "./components/RulesPanel.vue";
 import InteractionPanel from "./components/InteractionPanel.vue";
@@ -38,6 +40,27 @@ import { isColor, type DiagramElement } from "./domain/document";
 
 const drawingTool = ref<LineKind | null>(null);
 const editor = useEditor();
+const imagePreview = ref<{ elementId: string; imageId: string }>();
+function uploadState(id: string, asset: ImageAsset, isDefault: boolean) {
+  editor.mutate(() => {
+    const item = editor.document.value.elements.find((e) => e.id === id);
+    if (!item) return;
+    editor.document.value.assets ||= {};
+    editor.document.value.assets[asset.id] = asset;
+    if (isDefault) item.defaultImageId = asset.id;
+    else {
+      item.rules ||= [];
+      item.rules.push({
+        id: crypto.randomUUID(),
+        mode: "all",
+        conditions: [{ pointId: "running", operator: "eq", value: 1 }],
+        effects: { imageId: asset.id },
+      });
+    }
+  });
+  imagePreview.value = undefined;
+}
+
 function addLine(item: DiagramElement) {
   editor.mutate(() => doc.value.elements.push(item));
   editor.select(item.id);
@@ -63,6 +86,12 @@ const pages = usePages(doc, (change) => {
   editor.mutate(change);
   editor.clearSelection();
 });
+watch(
+  () => [selectedId.value, doc.value.page.id],
+  () => {
+    imagePreview.value = undefined;
+  },
+);
 const { samples, history } = useMockData(
   doc,
   undefined,
@@ -433,6 +462,7 @@ onBeforeUnmount(() => {
                 }"
               >
                 <DiagramCanvas
+                  :image-preview="imagePreview"
                   :drawing-tool="drawingTool"
                   @draw="addLine"
                   @cancel-draw="drawingTool = null"
@@ -645,11 +675,26 @@ onBeforeUnmount(() => {
                 })
             "
           />
+          <StatesPanel
+            :selected="selected"
+            :assets="doc.assets"
+            :preview="imagePreview"
+            @upload="uploadState"
+            @default="
+              (id, defaultImageId) => editor.update(id, { defaultImageId })
+            "
+            @preview="imagePreview = $event"
+          />
           <RulesPanel
+            :assets="doc.assets"
             :selected="selected"
             @change="(id, rules) => editor.update(id, { rules })"
           />
-          <InteractionPanel :document="doc" :selected="selected" @change="(id, interaction) => editor.update(id, { interaction })" />
+          <InteractionPanel
+            :document="doc"
+            :selected="selected"
+            @change="(id, interaction) => editor.update(id, { interaction })"
+          />
           <DataPanel
             @range="
               (id, historyMinutes) => editor.update(id, { historyMinutes })
