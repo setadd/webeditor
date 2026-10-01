@@ -15,6 +15,7 @@ export interface DiagramElement {
   rules?: DisplayRule[];
   rotation?: number;
   binding?: string;
+  defaultImageId?: string;
   historyMinutes?: number;
 }
 
@@ -174,6 +175,28 @@ export function parseDocument(value: unknown): DiagramDocument {
     ) {
       return invalid();
     }
+    if (
+      ((item.rules || []) as DisplayRule[]).some(
+        (rule) => rule.effects.imageId,
+      ) &&
+      !item.defaultImageId
+    )
+      return invalid();
+    const imageIds = [
+      item.defaultImageId,
+      ...((item.rules || []) as DisplayRule[]).map(
+        (rule) => rule.effects.imageId,
+      ),
+    ].filter((id) => id !== undefined);
+    if (
+      imageIds.some(
+        (id) =>
+          typeof id !== "string" ||
+          !record(value.assets) ||
+          !Object.hasOwn(value.assets, id),
+      )
+    )
+      return invalid();
     ids.add(item.id);
   }
   if (value.otherPages !== undefined) {

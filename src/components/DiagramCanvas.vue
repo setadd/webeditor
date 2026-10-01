@@ -11,6 +11,7 @@ import type { Sample, HistorySample } from "../data/useMockData";
 const props = defineProps<{
   document: DiagramDocument;
   readonly?: boolean;
+  imagePreview?: { elementId: string; imageId: string };
   selectedId: string | null;
   selectedIds?: string[];
   samples?: Record<string, Sample>;
@@ -119,7 +120,7 @@ function appearance(item: DiagramElement): CellAttrs {
 
 function effectiveAppearance(item: DiagramElement) {
   const effective = evaluateRules(
-    { color: item.color },
+    { color: item.color, imageId: item.defaultImageId },
     item.rules,
     props.samples,
     item.binding,
@@ -133,6 +134,35 @@ function effectiveAppearance(item: DiagramElement) {
   );
   for (const [key, value] of Object.entries(data))
     base[key] = { ...base[key], ...value };
+  if (item.kind === "device") {
+    const preview =
+      !props.readonly && props.imagePreview?.elementId === item.id
+        ? props.imagePreview.imageId
+        : undefined;
+    const asset = props.document.assets?.[preview || effective.imageId || ""];
+    for (const selector of [
+      "accent",
+      "iconBg",
+      "ring",
+      "rotor",
+      "name",
+      "label",
+      "tag",
+    ])
+      base[selector] = {
+        ...base[selector],
+        display: asset ? "none" : "inline",
+      };
+    base.stateImage = {
+      href: asset?.dataUrl || "",
+      x: 0,
+      y: 0,
+      width: item.width,
+      height: item.height,
+      preserveAspectRatio: "xMidYMid meet",
+      display: asset ? "inline" : "none",
+    };
+  }
   return base;
 }
 
@@ -155,6 +185,7 @@ function addNode(item: DiagramElement): Node {
             { tagName: "text", selector: "name" },
             { tagName: "text", selector: "label" },
             { tagName: "text", selector: "tag" },
+            { tagName: "image", selector: "stateImage" },
           ],
         }
       : {}),
@@ -252,6 +283,7 @@ watch(
     props.selectedIds,
     props.samples,
     props.history,
+    props.imagePreview,
   ],
   synchronize,
   { deep: true },
