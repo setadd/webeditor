@@ -1,0 +1,8 @@
+@keyframes diagram-line-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -24;
+  }
+}

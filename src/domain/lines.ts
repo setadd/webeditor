@@ -1,3 +1,4 @@
+import "../components/line-flow.css";
 export type Point = { x: number; y: number };
 export type LineKind = "straight" | "polyline" | "curve";
 export interface LineGeometry {
@@ -54,11 +55,33 @@ export function worldPoints(item: DiagramElement) {
 export const lineMarkup = [
   { tagName: "path", selector: "hit" },
   { tagName: "path", selector: "line" },
+  { tagName: "path", selector: "flow" },
 ];
 export function lineAppearance(item: DiagramElement) {
   const d = linePath(item),
     line = item.line!;
+  const flow = item.flow;
+  const running = flow?.enabled && flow.direction !== "stopped";
   return {
+    flow: {
+      d,
+      "data-flow-path": item.id,
+      fill: "none",
+      stroke: "#ffffff",
+      strokeWidth: Math.max(0.8, line.strokeWidth * 0.45),
+      strokeDasharray: "7 17",
+      strokeLinecap: "round",
+      pointerEvents: "none",
+      opacity: running ? 1 : 0,
+      style: {
+        animationName: running ? "diagram-line-flow" : "none",
+        animationDuration: `${1 / (flow?.speed || 1)}s`,
+        animationTimingFunction: "linear",
+        animationIterationCount: "infinite",
+        animationDirection:
+          flow?.direction === "reverse" ? "reverse" : "normal",
+      },
+    },
     hit: {
       d,
       fill: "none",
