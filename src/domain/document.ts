@@ -1,6 +1,7 @@
 import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
 import { isValidRules, type DisplayRule } from "./rules";
-export type ElementKind = "device" | "text" | "metric" | "chart";
+import type { LineGeometry } from "./lines";
+export type ElementKind = "device" | "text" | "metric" | "chart" | "line";
 
 export interface DiagramElement {
   id: string;
@@ -14,6 +15,7 @@ export interface DiagramElement {
   color: string;
   rules?: DisplayRule[];
   rotation?: number;
+  line?: LineGeometry;
   binding?: string;
   historyMinutes?: number;
 }
@@ -66,6 +68,7 @@ export function createElement(
   const width = kind === "chart" ? 320 : kind === "device" ? 184 : 240;
   const height = kind === "chart" ? 180 : kind === "text" ? 48 : 112;
   const title = {
+    line: "线条",
     device: "设备",
     text: "文字",
     metric: "指标",
@@ -152,7 +155,9 @@ export function parseDocument(value: unknown): DiagramDocument {
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
-      !["device", "text", "metric", "chart"].includes(String(item.kind)) ||
+      !["device", "text", "metric", "chart", "line"].includes(
+        String(item.kind),
+      ) ||
       (item.historyMinutes !== undefined &&
         ![15, 60].includes(Number(item.historyMinutes))) ||
       (item.binding !== undefined && typeof item.binding !== "string") ||
@@ -173,6 +178,34 @@ export function parseDocument(value: unknown): DiagramDocument {
       item.y + item.height > value.page.height
     ) {
       return invalid();
+    }
+    if (item.kind === "line") {
+      const l = item.line;
+      if (
+        !record(l) ||
+        !["straight", "polyline", "curve"].includes(String(l.type)) ||
+        !Array.isArray(l.points) ||
+        l.points.length < 2 ||
+        (l.type === "straight" && l.points.length !== 2) ||
+        (l.type === "curve" && l.points.length !== 4) ||
+        !l.points.every(
+          (p) =>
+            record(p) &&
+            finite(p.x) &&
+            finite(p.y) &&
+            p.x >= 0 &&
+            p.x <= 1 &&
+            p.y >= 0 &&
+            p.y <= 1,
+        ) ||
+        !finite(l.strokeWidth) ||
+        l.strokeWidth < 1 ||
+        l.strokeWidth > 40 ||
+        !["solid", "dashed"].includes(String(l.dash)) ||
+        typeof l.startArrow !== "boolean" ||
+        typeof l.endArrow !== "boolean"
+      )
+        return invalid();
     }
     ids.add(item.id);
   }
