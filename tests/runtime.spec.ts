@@ -65,6 +65,8 @@ test("规则异常状态筛选、历史范围与画布详情，退出后不影�
   await page.getByRole("button", { name: "添加文字", exact: true }).click();
   await page.getByLabel("图元名称", { exact: true }).fill("故障指示");
   await page.getByLabel("显示文字", { exact: true }).fill("故障指示文字");
+  await page.getByLabel("X 坐标", { exact: true }).fill("500");
+  await page.getByLabel("X 坐标", { exact: true }).press("Tab");
   await page.getByRole("button", { name: "添加显示规则", exact: true }).click();
   await page.getByLabel("规则1条件1点位").selectOption("fault");
   await page.getByLabel("故障状态可用", { exact: true }).uncheck();

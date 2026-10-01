@@ -197,7 +197,7 @@ test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板",
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("整体尺寸超出");
+  await expect(page.getByRole("alert").filter({hasText:"整体尺寸超出"})).toBeVisible();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.getByRole("button", { name: "载入演示项目", exact: true }).click();
   await page
@@ -211,4 +211,10 @@ test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板",
   await expect(page.getByTestId("canvas").locator("image")).toHaveCount(0);
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
+});
+
+test('适应内容包含旋转负边缘，平移确实移动视口且不标脏',async({page})=>{
+ await page.goto('/');await page.getByRole('button',{name:'添加设备',exact:true}).click();await page.getByLabel('X 坐标',{exact:true}).fill('0');await page.getByLabel('Y 坐标',{exact:true}).fill('0');await page.getByLabel('旋转角度',{exact:true}).fill('45');await page.getByLabel('旋转角度',{exact:true}).press('Tab');await page.getByRole('button',{name:'保存到本机',exact:true}).click();await expect(page.getByTestId('save-state')).toHaveText('已保存');await page.getByRole('button',{name:'适应内容',exact:true}).click();
+ const viewport=page.getByTestId('view-scroll');const v=await viewport.boundingBox();const node=await page.getByTestId('canvas').locator('.x6-node').boundingBox();if(!v||!node)throw Error();expect(node.x).toBeGreaterThanOrEqual(v.x);expect(node.y).toBeGreaterThanOrEqual(v.y);expect(node.x+node.width).toBeLessThanOrEqual(v.x+v.width);expect(node.y+node.height).toBeLessThanOrEqual(v.y+v.height);
+ await page.getByRole('button',{name:'恢复100%',exact:true}).click();await page.getByRole('button',{name:'平移画布',exact:true}).click();await page.mouse.move(v.x+300,v.y+100);await page.mouse.down();await page.mouse.move(v.x+150,v.y+100,{steps:6});await page.mouse.up();await expect.poll(()=>viewport.evaluate(e=>e.scrollLeft)).toBeGreaterThan(0);await expect(page.getByTestId('save-state')).toHaveText('已保存');
 });

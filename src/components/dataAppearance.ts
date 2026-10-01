@@ -38,7 +38,7 @@ export function dataAppearance(
         fontSize: 13,
         fill: "#64748b",
       },
-      value: { text, x: 12, y: 70, fontSize: 22, fill: item.color },
+      value: { text, x: 12, y: 70, textAnchor: "start", fontSize: 22, fill: item.color },
       body: { fill: "#f0fdfa" },
     };
   if (item.kind !== "chart") return {};
@@ -70,7 +70,7 @@ export function dataAppearance(
       fontSize: 13,
       fill: "#334155",
     },
-    value: { text, x: 12, y: 40, fontSize: 13, fill: item.color },
+    value: { text, x: 12, y: 40, textAnchor: "start", fontSize: 13, fill: item.color },
     plot: {
       role: "img",
       "aria-label": "历史趋势曲线",
