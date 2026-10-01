@@ -10,6 +10,7 @@ export interface DiagramElement {
   width: number;
   height: number;
   color: string;
+  rotation?: number;
 }
 
 export interface DiagramDocument {
@@ -109,6 +110,7 @@ export function parseDocument(value: unknown): DiagramDocument {
       !isColor(item.color) ||
       !finite(item.x) ||
       !finite(item.y) ||
+      (item.rotation !== undefined && !finite(item.rotation)) ||
       !finite(item.width) ||
       !finite(item.height) ||
       item.width <= 0 ||
