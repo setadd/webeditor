@@ -19,6 +19,7 @@ export interface DiagramElement {
   line?: LineGeometry;
   binding?: string;
   historyMinutes?: number;
+  interaction?: { action: "details" | "navigate"; pageId?: string };
 }
 
 export interface DiagramPageSnapshot {
@@ -99,7 +100,7 @@ function nonEmpty(value: unknown): value is string {
 }
 
 // Validate stored data before handing it to the renderer, preserving invalid saves for recovery.
-export function parseDocument(value: unknown): DiagramDocument {
+export function parseDocument(value: unknown, validateReferences = true): DiagramDocument {
   const invalid = () => {
     throw new Error("本机文件格式不兼容或内容损坏，原文件未被覆盖。");
   };
@@ -153,6 +154,7 @@ export function parseDocument(value: unknown): DiagramDocument {
   for (const item of value.elements) {
     if (
       !record(item) ||
+      (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
@@ -241,11 +243,19 @@ export function parseDocument(value: unknown): DiagramDocument {
         assets: value.assets,
         savedAt: null,
         otherPages: undefined,
-      });
+      }, false);
       for (const element of page.elements as DiagramElement[]) {
         if (ids.has(element.id)) return invalid();
         ids.add(element.id);
       }
+    }
+  }
+  if (validateReferences) {
+    const document = value as unknown as DiagramDocument;
+    const pages = [{ page: document.page, elements: document.elements }, ...(document.otherPages || [])];
+    const targets = new Set(pages.map(p => p.page.id));
+    if (pages.some(p => p.elements.some(e => e.interaction?.action === 'navigate' && !targets.has(e.interaction.pageId || '')))) {
+      throw new Error('页面跳转目标不存在，请重新选择目标页面。');
     }
   }
   return value as unknown as DiagramDocument;

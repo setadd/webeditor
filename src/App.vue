@@ -22,6 +22,7 @@ import {
 } from "@element-plus/icons-vue";
 import BackgroundPanel from "./components/BackgroundPanel.vue";
 import RulesPanel from "./components/RulesPanel.vue";
+import InteractionPanel from "./components/InteractionPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
 import FlowPanel from "./components/FlowPanel.vue";
@@ -648,6 +649,7 @@ onBeforeUnmount(() => {
             :selected="selected"
             @change="(id, rules) => editor.update(id, { rules })"
           />
+          <InteractionPanel :document="doc" :selected="selected" @change="(id, interaction) => editor.update(id, { interaction })" />
           <DataPanel
             @range="
               (id, historyMinutes) => editor.update(id, { historyMinutes })
