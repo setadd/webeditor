@@ -14,6 +14,9 @@ export interface DiagramElement {
   height: number;
   color: string;
   rules?: DisplayRule[];
+  locked?: boolean;
+  visible?: boolean;
+  groupId?: string;
   flow?: FlowEffect;
   rotation?: number;
   line?: LineGeometry;
@@ -158,11 +161,10 @@ export function parseDocument(
   for (const item of value.elements) {
     if (
       !record(item) ||
-      (item.interaction !== undefined &&
-        (!record(item.interaction) ||
-          !["details", "navigate"].includes(String(item.interaction.action)) ||
-          (item.interaction.action === "navigate" &&
-            !nonEmpty(item.interaction.pageId)))) ||
+      (item.locked !== undefined && typeof item.locked !== "boolean") ||
+      (item.visible !== undefined && typeof item.visible !== "boolean") ||
+      (item.groupId !== undefined && !nonEmpty(item.groupId)) ||
+      (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DiagramElement } from "../domain/document";
-import type { DisplayRule, RuleCondition } from "../domain/rules";
+import type { DisplayRule, RuleCondition, FlowEffect } from "../domain/rules";
 import { mockDataProvider } from "../data/useMockData";
 import type { ImageAsset } from "../domain/assets";
 const props = defineProps<{
@@ -39,8 +39,30 @@ function condition(i: number, j: number, patch: Partial<RuleCondition>) {
   edit((rules) => Object.assign(rules[i]!.conditions[j]!, patch));
 }
 function color(i: number, value: string) {
+  if (!value.trim()) {
+    edit((rules) => {
+      delete rules[i]!.effects.color;
+    });
+    return;
+  }
   if (/^#[\da-f]{6}$/i.test(value))
     edit((rules) => (rules[i]!.effects.color = value));
+}
+function toggleFlow(i: number, enabled: boolean) {
+  edit((rules) => {
+    if (enabled)
+      rules[i]!.effects.flow = {
+        enabled: true,
+        direction: "forward",
+        speed: 1,
+      };
+    else delete rules[i]!.effects.flow;
+  });
+}
+function flow(i: number, patch: Partial<FlowEffect>) {
+  edit((rules) => {
+    Object.assign(rules[i]!.effects.flow!, patch);
+  });
 }
 function move(i: number, delta: number) {
   edit((rules) => {
@@ -52,7 +74,9 @@ function move(i: number, delta: number) {
 <template>
   <section v-if="selected" class="rules-panel">
     <h3>显示规则</h3>
-    <p>按顺序匹配；条件恢复时使用基础外观。</p>
+    <p>
+      每种效果分别取首个匹配规则；颜色留空表示不改变颜色。条件恢复时使用基础配置。
+    </p>
     <div v-for="(rule, i) in selected.rules || []" :key="rule.id" class="rule">
       <strong>规则 {{ i + 1 }}</strong>
       <button
@@ -179,6 +203,65 @@ function move(i: number, delta: number) {
           maxlength="7"
           @change="color(i, ($event.target as HTMLInputElement).value)"
       /></label>
+      <template v-if="selected.kind === 'line'">
+        <label
+          ><input
+            type="checkbox"
+            :aria-label="`规则${i + 1}配置流动`"
+            :checked="!!rule.effects.flow"
+            @change="toggleFlow(i, ($event.target as HTMLInputElement).checked)"
+          />配置流动效果</label
+        >
+        <template v-if="rule.effects.flow">
+          <label
+            ><input
+              type="checkbox"
+              :aria-label="`规则${i + 1}流动启用`"
+              :checked="rule.effects.flow.enabled"
+              @change="
+                flow(i, {
+                  enabled: ($event.target as HTMLInputElement).checked,
+                })
+              "
+            />启用流动</label
+          >
+          <label
+            >方向<select
+              :aria-label="`规则${i + 1}流动方向`"
+              :value="rule.effects.flow.direction"
+              @change="
+                flow(i, {
+                  direction: ($event.target as HTMLSelectElement)
+                    .value as FlowEffect['direction'],
+                })
+              "
+            >
+              <option value="forward">正向（起点 → 终点）</option>
+              <option value="reverse">反向（终点 → 起点）</option>
+              <option value="stopped">停止</option>
+            </select></label
+          >
+          <label
+            >速度<input
+              type="number"
+              min="0.1"
+              max="10"
+              step="0.1"
+              :aria-label="`规则${i + 1}流动速度`"
+              :value="rule.effects.flow.speed"
+              @change="
+                flow(i, {
+                  speed: Math.max(
+                    0.1,
+                    Math.min(
+                      10,
+                      Number(($event.target as HTMLInputElement).value) || 1,
+                    ),
+                  ),
+                })
+              "
+          /></label> </template
+      ></template>
     </div>
     <el-button @click="add">添加显示规则</el-button>
   </section>

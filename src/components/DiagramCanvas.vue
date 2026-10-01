@@ -34,6 +34,10 @@ const container = ref<HTMLDivElement>();
 let graph: Graph | undefined;
 let syncing = false;
 
+function isLocked(id:string) {
+ const item=props.document.elements.find(e=>e.id===id);
+ return !!item?.locked || !!item?.groupId && props.document.elements.some(e=>e.groupId===item.groupId&&e.locked);
+}
 function appearance(item: DiagramElement): CellAttrs {
   if (item.kind === "line") return lineAppearance(item);
   const active =
@@ -214,15 +218,17 @@ function synchronize() {
   syncing = true;
   try {
     graph.resize(props.document.page.width, props.document.page.height);
-    const ids = new Set(props.document.elements.map((item) => item.id));
+    const ids = new Set(props.document.elements.filter(e=>e.visible!==false).map((item) => item.id));
     for (const node of graph.getNodes())
       if (!ids.has(node.id)) graph.removeNode(node);
-    for (const item of props.document.elements) {
+    for (const [index, item] of props.document.elements.entries()) {
+      if (item.visible === false) continue;
       const node = graph.getCellById(item.id) as Node | null;
       if (!node) {
-        addNode(item);
+        addNode(item).setZIndex(index);
         continue;
       }
+      node.setZIndex(index);
       const position = node.position();
       if (position.x !== item.x || position.y !== item.y)
         node.position(item.x, item.y);
@@ -243,8 +249,8 @@ onMounted(() => {
     grid: { size: 1, visible: false },
     background: { color: "transparent" },
     translating: { restrict: true },
-    interacting: () => ({
-      nodeMovable: !props.readonly,
+    interacting: (view) => ({
+      nodeMovable: !props.readonly && !isLocked(view.cell.id),
       magnetConnectable: false,
     }),
     connecting: { snap: false, allowBlank: false },
@@ -268,21 +274,8 @@ onMounted(() => {
   window.addEventListener("mouseup", finish);
   window.addEventListener("mousemove", pointerMove);
   graph.on("node:change:position", ({ node }) => {
-    if (!syncing && !props.readonly) {
+    if (!syncing && !props.readonly && !isLocked(node.id)) {
       const { x, y } = node.position();
-      const original = props.document.elements.find(
-        (item) => item.id === node.id,
-      );
-      if (original) {
-        const dx = x - original.x,
-          dy = y - original.y;
-        for (const id of props.selectedIds || []) {
-          if (id !== node.id) {
-            const item = props.document.elements.find((v) => v.id === id);
-            if (item) emit("move", id, item.x + dx, item.y + dy);
-          }
-        }
-      }
       emit("move", node.id, x, y);
     }
   });
@@ -312,7 +305,7 @@ const activeItem = computed(() =>
 let transform:
   { kind: string; item: DiagramElement; x: number; y: number } | undefined;
 function startTransform(event: MouseEvent, kind: string) {
-  if (props.readonly || !activeItem.value) return;
+  if (props.readonly || !activeItem.value || isLocked(activeItem.value.id)) return;
   event.preventDefault();
   event.stopPropagation();
   marquee.value = undefined;
@@ -395,7 +388,7 @@ function finish() {
     <span
       v-for="item in document.elements.filter(
         (e) =>
-          evaluateRules({ color: e.color }, e.rules, samples, e.binding)
+          e.visible !== false && evaluateRules({ color: e.color }, e.rules, samples, e.binding)
             .abnormal,
       )"
       :key="`error-${item.id}`"
@@ -435,7 +428,7 @@ function finish() {
       }"
     ></div>
     <div
-      v-if="activeItem && !readonly"
+      v-if="activeItem && !readonly && activeItem.visible !== false && !isLocked(activeItem.id)"
       class="transform-outline"
       :style="{
         left: activeItem.x + 'px',

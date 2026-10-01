@@ -28,6 +28,8 @@ import RulesPanel from "./components/RulesPanel.vue";
 import InteractionPanel from "./components/InteractionPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
+import LayersPanel from "./components/LayersPanel.vue";
+import { useLayers } from "./composables/useLayers";
 import FlowPanel from "./components/FlowPanel.vue";
 import LineProperties from "./components/LineProperties.vue";
 import type { LineKind } from "./domain/lines";
@@ -66,6 +68,7 @@ async function importProject(event: Event) {
 
 const imagePreview = ref<{ elementId: string; imageId: string }>();
 function uploadState(id: string, asset: ImageAsset, isDefault: boolean) {
+  if (!editor.canEdit(id)) return;
   editor.mutate(() => {
     const item = editor.document.value.elements.find((e) => e.id === id);
     if (!item) return;
@@ -104,6 +107,7 @@ const {
   loadBlocked,
   saveState,
 } = editor;
+const layers = useLayers(doc, selectedIds, editor.mutate);
 const publication = usePublication(doc);
 const { mode, runtime, publishing, publicationError } = publication;
 const pages = usePages(doc, (change) => {
@@ -417,28 +421,7 @@ onBeforeUnmount(() => {
           <div class="panel-title layers-title">
             页面图元 <span class="count">{{ doc.elements.length }}</span>
           </div>
-          <div class="layer-list">
-            <div v-if="!doc.elements.length" class="empty-layers">
-              图元会显示在这里
-            </div>
-            <button
-              v-for="item in doc.elements"
-              :key="item.id"
-              :aria-label="`选择图元 ${item.name}`"
-              :aria-pressed="selectedIds.includes(item.id)"
-              :class="['layer-item', { active: selectedIds.includes(item.id) }]"
-              @click="select(item, $event)"
-            >
-              <el-icon
-                ><Cpu v-if="item.kind === 'device'" /><EditPen
-                  v-else /></el-icon
-              ><span>{{ item.name || "未命名图元" }}</span
-              ><span
-                class="layer-dot"
-                :style="{ background: item.color }"
-              ></span>
-            </button>
-          </div>
+          <LayersPanel :document="doc" :selected-ids="selectedIds" @select="editor.select" @toggle="layers.toggle" @order="layers.order" @group="layers.group" @ungroup="layers.ungroup" @align="layers.align" @distribute="layers.distribute" />
           <div class="local-note">
             <span class="note-icon"
               ><el-icon><FolderOpened /></el-icon
@@ -509,11 +492,11 @@ onBeforeUnmount(() => {
                   :selected-id="selectedId"
                   :selected-ids="selectedIds"
                   @select="editor.select"
-                  @select-many="selectedIds = $event"
+                  @select-many="editor.selectMany"
                   @gesture-start="editor.beginGesture"
                   @gesture-end="editor.endGesture"
                   @transform="(id, patch) => editor.update(id, patch)"
-                  @move="(id, x, y) => editor.update(id, { x, y })"
+                  @move="editor.move"
                 />
                 <div v-if="!doc.elements.length" class="canvas-empty">
                   <div class="empty-illustration">
@@ -545,6 +528,7 @@ onBeforeUnmount(() => {
             <span class="tiny-badge">{{ selected ? "图元" : "页面" }}</span>
           </div>
           <template v-if="selected">
+            <p v-if="!editor.canEdit(selected.id)" role="status">图元或组合成员已锁定，请在图层列表解锁后编辑。</p>
             <div class="selection-heading">
               <span class="selection-icon"
                 ><el-icon

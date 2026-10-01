@@ -144,7 +144,8 @@ export function isValidRules(value: unknown): value is DisplayRule[] {
         !["forward", "reverse", "stopped"].includes(String(e.flow.direction)) ||
         typeof e.flow.speed !== "number" ||
         !Number.isFinite(e.flow.speed) ||
-        e.flow.speed <= 0)
+        e.flow.speed < 0.1 ||
+        e.flow.speed > 10)
     )
       return false;
   }
