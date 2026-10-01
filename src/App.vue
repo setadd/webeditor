@@ -24,6 +24,10 @@ import BackgroundPanel from "./components/BackgroundPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
+import RuntimeView from "./components/RuntimeView.vue";
+import { usePublication } from "./composables/usePublication";
+import PageControls from "./components/PageControls.vue";
+import { usePages } from "./composables/usePages";
 import { useEditor } from "./composables/useEditor";
 import { isColor, type DiagramElement } from "./domain/document";
 
@@ -42,6 +46,9 @@ const {
   loadBlocked,
   saveState,
 } = editor;
+const publication = usePublication(doc);
+const { mode, runtime, publishing, publicationError } = publication;
+const pages = usePages(doc, (change) => { editor.mutate(change); editor.clearSelection(); });
 const { samples, history } = useMockData(doc);
 const newPageVisible = ref(false);
 const newPage = reactive({ name: "未命名组态", width: 960, height: 640 });
@@ -118,16 +125,30 @@ async function confirmReplacement(): Promise<boolean> {
 async function openSaved() {
   if (await confirmReplacement()) await editor.open();
 }
+async function createProject() {
+  if (await confirmReplacement()) editor.create("未命名组态", 960, 640);
+}
 async function openNewPage() {
-  if (await confirmReplacement()) newPageVisible.value = true;
+  newPageVisible.value = true;
 }
 function createPage() {
   if (!newPageValid.value) return;
-  editor.create(newPage.name.trim(), newPage.width, newPage.height);
+  pages.addPage(newPage.name.trim(), newPage.width, newPage.height);
   newPageVisible.value = false;
 }
 async function save() {
   if (await editor.save()) ElMessage.success("已保存到本机");
+}
+async function publish() {
+  if (await publication.publish()) ElMessage.success("本机发布成功");
+}
+function guardRuntimeKeys(event: KeyboardEvent) {
+  if (mode.value === 'edit') return;
+  const command = event.ctrlKey || event.metaKey;
+  if (['Delete', 'Backspace', 'Escape'].includes(event.key) || (command && ['z', 'y', 'c', 'v', 'a', 's', 'd'].includes(event.key.toLowerCase()))) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
 }
 function beforeUnload(event: BeforeUnloadEvent) {
   if (dirty.value) {
@@ -136,6 +157,7 @@ function beforeUnload(event: BeforeUnloadEvent) {
   }
 }
 function keydown(event: KeyboardEvent) {
+  if (mode.value !== "edit") return;
   if (
     (event.target as HTMLElement).closest(
       "input,textarea,select,[contenteditable=true],[role=dialog]",
@@ -168,10 +190,13 @@ function keydown(event: KeyboardEvent) {
 onMounted(() => {
   window.addEventListener("keydown", keydown);
   void editor.open();
+  if (location.hash === "#published") void publication.openPublished();
   window.addEventListener("beforeunload", beforeUnload);
+  window.addEventListener("keydown", guardRuntimeKeys, true);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("beforeunload", beforeUnload);
+  window.removeEventListener("keydown", guardRuntimeKeys, true);
   window.removeEventListener("keydown", keydown);
 });
 </script>
@@ -190,6 +215,7 @@ onBeforeUnmount(() => {
         ><span class="avatar">工</span>
       </div>
     </header>
+    <template v-if="mode === 'edit'">
     <section class="project-bar">
       <div class="project-heading">
         <span class="project-icon"
@@ -211,6 +237,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="project-actions">
+        <el-button :disabled="busy" @click="createProject">新建项目</el-button>
+        <el-button :disabled="busy" @click="publication.preview">预览草稿</el-button>
+        <el-button :disabled="busy" :loading="publishing" @click="publish">发布到本机</el-button>
+        <el-button :disabled="busy || publishing" @click="publication.openPublished">打开发布版本</el-button>
         <el-button :icon="Plus" :disabled="busy" @click="openNewPage"
           >新建页面</el-button
         >
@@ -227,6 +257,8 @@ onBeforeUnmount(() => {
         >
       </div>
     </section>
+    <div v-if="publicationError" role="alert" class="error-banner">{{ publicationError }}</div>
+    <PageControls :document="doc" :disabled="busy" @switch="pages.switchPage" @rename="pages.rename" />
     <div v-if="error" class="error-banner" role="alert">
       <el-icon><InfoFilled /></el-icon><span>{{ error }}</span
       ><el-button v-if="loadBlocked" size="small" @click="editor.open"
@@ -549,6 +581,8 @@ onBeforeUnmount(() => {
         </div>
       </aside>
     </main>
+    </template>
+    <RuntimeView v-if="runtime && mode !== 'edit'" :document="runtime" :mode="mode" @exit="publication.exit" />
     <el-dialog
       v-model="newPageVisible"
       title="新建组态页面"
@@ -584,7 +618,7 @@ onBeforeUnmount(() => {
           /></el-form-item>
         </div>
         <p class="field-hint">
-          宽度 400–3840 px，高度 300–2160 px。保存新页面将替换上次本机保存。
+          宽度 400–3840 px，高度 300–2160 px。页面保存在同一个本机项目中。
         </p>
       </el-form>
       <template #footer

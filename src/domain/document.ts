@@ -16,6 +16,12 @@ export interface DiagramElement {
   historyMinutes?: number;
 }
 
+export interface DiagramPageSnapshot {
+  name: string;
+  page: { id: string; width: number; height: number };
+  elements: DiagramElement[];
+}
+
 export interface DiagramDocument {
   formatVersion: 1;
   id: string;
@@ -29,6 +35,7 @@ export interface DiagramDocument {
   assets?: Record<string, ImageAsset>;
   elements: DiagramElement[];
   savedAt: string | null;
+  otherPages?: DiagramPageSnapshot[];
 }
 
 export const isColor = (value: string) => /^#[\da-f]{6}$/i.test(value);
@@ -165,6 +172,19 @@ export function parseDocument(value: unknown): DiagramDocument {
       return invalid();
     }
     ids.add(item.id);
+  }
+  if (value.otherPages !== undefined) {
+    if (!Array.isArray(value.otherPages)) return invalid();
+    const pageIds = new Set([value.page.id]);
+    for (const page of value.otherPages) {
+      if (!record(page) || !record(page.page) || !nonEmpty(page.page.id) || pageIds.has(page.page.id)) return invalid();
+      pageIds.add(page.page.id);
+      parseDocument({ ...page, formatVersion: 1, id: value.id, savedAt: null, otherPages: undefined });
+      for (const element of page.elements as DiagramElement[]) {
+        if (ids.has(element.id)) return invalid();
+        ids.add(element.id);
+      }
+    }
   }
   return value as unknown as DiagramDocument;
 }
