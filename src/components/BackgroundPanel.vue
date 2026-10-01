@@ -27,7 +27,7 @@ async function upload(event: Event) {
   error.value = "";
   uploading.value = true;
   try {
-    const asset = await readImageAsset(file);
+    const asset = await readImageAsset(file, props.document.assets);
     if (props.document.page.id === pageId)
       emit("change", { ...background.value, imageId: asset.id }, asset);
   } catch (reason) {
@@ -60,7 +60,7 @@ async function upload(event: Event) {
     /></label>
     <small
       >PNG / JPEG / WebP；单张 ≤ 5 MB，≤ 2500
-      万像素。图片随项目保存在本机。</small
+      万像素。项目最多 100 张 / 总大小 25 MB。图片随项目保存在本机。</small
     >
     <label
       >图片模式<select

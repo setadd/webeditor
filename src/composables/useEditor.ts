@@ -124,6 +124,14 @@ export function useEditor() {
     error.value = "";
     loadBlocked.value = false;
   }
+  function replaceDraft(value: DiagramDocument) {
+    document.value = clone(value);
+    document.value.savedAt = null;
+    resetHistory();
+    savedContent.value = "";
+    error.value = "";
+    loadBlocked.value = false;
+  }
   function add(kind: ElementKind) {
     const item = createElement(kind, document.value);
     commitMutation(() => document.value.elements.push(item));
@@ -220,6 +228,7 @@ export function useEditor() {
     canRedo,
     open,
     create,
+    replaceDraft,
     add,
     update,
     save,

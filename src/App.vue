@@ -20,6 +20,7 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import { readProjectFile, exportProject } from "./storage/projectTransfer";
 import StatesPanel from "./components/StatesPanel.vue";
 import type { ImageAsset } from "./domain/assets";
 import BackgroundPanel from "./components/BackgroundPanel.vue";
@@ -40,6 +41,29 @@ import { isColor, type DiagramElement } from "./domain/document";
 
 const drawingTool = ref<LineKind | null>(null);
 const editor = useEditor();
+const importing = ref(false);
+async function importProject(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+  importing.value = true;
+  try {
+    const project = await readProjectFile(file);
+    if (await confirmReplacement()) {
+      editor.replaceDraft(project);
+      imagePreview.value = undefined;
+      ElMessage.success("项目已导入，请保存到本机");
+    }
+  } catch (reason) {
+    ElMessage.error(
+      "导入失败：" + (reason instanceof Error ? reason.message : "文件不可用"),
+    );
+  } finally {
+    input.value = "";
+    importing.value = false;
+  }
+}
+
 const imagePreview = ref<{ elementId: string; imageId: string }>();
 function uploadState(id: string, asset: ImageAsset, isDefault: boolean) {
   editor.mutate(() => {
@@ -132,7 +156,7 @@ const lastSaved = computed(() =>
       })
     : "尚无本机保存",
 );
-const busy = computed(() => loading.value || saving.value);
+const busy = computed(() => loading.value || saving.value || importing.value);
 
 function changeText(field: "name" | "text", value: string) {
   if (selected.value) editor.update(selected.value.id, { [field]: value });
@@ -288,6 +312,19 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="project-actions">
+          <el-button :disabled="busy" @click="exportProject(doc)"
+            >导出项目</el-button
+          >
+          <label
+            class="import-project"
+            title="JSON ≤ 50 MB；最多 100 张图片，图片总大小 ≤ 25 MB；每张 ≤ 5 MB / 2500 万像素"
+            >导入项目<input
+              aria-label="导入项目文件"
+              type="file"
+              accept=".json,application/json"
+              :disabled="busy"
+              @change="importProject"
+          /></label>
           <el-button :disabled="busy" @click="createProject"
             >新建项目</el-button
           >
@@ -333,7 +370,7 @@ onBeforeUnmount(() => {
           >重新读取</el-button
         >
       </div>
-      <main class="editor-layout" v-loading="loading">
+      <main class="editor-layout" v-loading="loading || importing">
         <aside class="library-panel">
           <div class="panel-title">
             组件库 <span class="tiny-badge">基础</span>
@@ -763,6 +800,20 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.import-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+  max-width: 150px;
+  flex-wrap: wrap;
+}
+.import-project input {
+  max-width: 145px;
+  font-size: 10px;
+}
+
 .edit-actions {
   display: flex;
   align-items: center;

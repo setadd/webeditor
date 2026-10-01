@@ -34,7 +34,7 @@ async function upload(event: Event, isDefault: boolean) {
   busy.value = true;
   error.value = "";
   try {
-    const asset = await readImageAsset(file);
+    const asset = await readImageAsset(file, props.assets);
     if (props.selected?.id === id) emit("upload", id, asset, isDefault);
   } catch (e) {
     error.value = e instanceof Error ? e.message : "图片读取失败";
@@ -88,7 +88,7 @@ async function upload(event: Event, isDefault: boolean) {
         @change="upload($event, false)"
     /></label>
     <small
-      >请先设置默认图片。PNG / JPEG / WebP，单张 ≤ 5 MB / 2500 万像素。</small
+      >请先设置默认图片。PNG / JPEG / WebP，单张 ≤ 5 MB / 2500 万像素。项目最多 100 张 / 总大小 25 MB。</small
     >
     <div class="image-previews">
       <button
