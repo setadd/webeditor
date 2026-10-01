@@ -11,6 +11,7 @@ import type { Sample, HistorySample } from "../data/useMockData";
 const props = defineProps<{
   drawingTool?: LineKind | null;
   document: DiagramDocument;
+  readonly?: boolean;
   selectedId: string | null;
   selectedIds?: string[];
   samples?: Record<string, Sample>;
@@ -32,7 +33,7 @@ let syncing = false;
 
 function appearance(item: DiagramElement): CellAttrs {
   if (item.kind === "line") return lineAppearance(item);
-  const active = (props.selectedIds || [props.selectedId]).includes(item.id);
+  const active = !props.readonly && (props.selectedIds || [props.selectedId]).includes(item.id);
   if (item.kind === "text") {
     return {
       body: {
@@ -195,25 +196,26 @@ onMounted(() => {
     grid: { size: 1, visible: false },
     background: { color: "#ffffff" },
     translating: { restrict: true },
-    interacting: { nodeMovable: true, magnetConnectable: false },
+    interacting: () => ({ nodeMovable: !props.readonly, magnetConnectable: false }),
     connecting: { snap: false, allowBlank: false },
     panning: false,
     mousewheel: false,
   });
   graph.on("node:mousedown", ({ node, e }) => {
+    if (props.readonly) { emit("select", node.id); return; }
     if (e.shiftKey || e.ctrlKey || e.metaKey) emit("select", node.id, true);
     else if (!(props.selectedIds || [props.selectedId]).includes(node.id))
       emit("select", node.id);
     emit("gestureStart");
   });
   graph.on("blank:mousedown", ({ x, y, e }) => {
-    if (e.button === 0 && !transform)
+    if (!props.readonly && e.button === 0 && !transform)
       marquee.value = { x, y, width: 0, height: 0 };
   });
   window.addEventListener("mouseup", finish);
   window.addEventListener("mousemove", pointerMove);
   graph.on("node:change:position", ({ node }) => {
-    if (!syncing) {
+    if (!syncing && !props.readonly) {
       const { x, y } = node.position();
       const original = props.document.elements.find(
         (item) => item.id === node.id,
@@ -256,7 +258,7 @@ const activeItem = computed(() =>
 let transform:
   { kind: string; item: DiagramElement; x: number; y: number } | undefined;
 function startTransform(event: MouseEvent, kind: string) {
-  if (!activeItem.value) return;
+  if (props.readonly || !activeItem.value) return;
   event.preventDefault();
   event.stopPropagation();
   marquee.value = undefined;
@@ -269,6 +271,7 @@ function startTransform(event: MouseEvent, kind: string) {
   emit("gestureStart");
 }
 function pointerMove(event: MouseEvent) {
+  if (props.readonly) return;
   if (transform) {
     const { item, kind, x, y } = transform;
     if (kind === "resize")
@@ -296,6 +299,7 @@ function pointerMove(event: MouseEvent) {
   }
 }
 function finish() {
+  if (props.readonly) return;
   if (marquee.value && !transform) {
     const m = marquee.value;
     const x = Math.min(m.x, m.x + m.width),
@@ -328,6 +332,7 @@ function finish() {
       aria-label="组态画布"
     ></div>
     <LineInteraction
+      v-if="!readonly"
       :document="document"
       :tool="drawingTool"
       :selected="activeItem"
@@ -348,7 +353,7 @@ function finish() {
       }"
     ></div>
     <div
-      v-if="activeItem"
+      v-if="activeItem && !readonly"
       class="transform-outline"
       :style="{
         left: activeItem.x + 'px',

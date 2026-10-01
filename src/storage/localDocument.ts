@@ -22,12 +22,12 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-export async function loadDocument(): Promise<DiagramDocument | null> {
+export async function loadDocument(key = ACTIVE): Promise<DiagramDocument | null> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     try {
       const transaction = db.transaction(STORE, "readonly");
-      const request = transaction.objectStore(STORE).get(ACTIVE);
+      const request = transaction.objectStore(STORE).get(key);
       transaction.oncomplete = () => {
         db.close();
         try {
@@ -49,7 +49,7 @@ export async function loadDocument(): Promise<DiagramDocument | null> {
   });
 }
 
-export async function saveDocument(document: DiagramDocument): Promise<void> {
+export async function saveDocument(document: DiagramDocument, key = ACTIVE): Promise<void> {
   const snapshot = parseDocument(JSON.parse(JSON.stringify(document)));
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
@@ -66,7 +66,7 @@ export async function saveDocument(document: DiagramDocument): Promise<void> {
             new Error("写入被中断，未保存的内容仍保留在画布中。"),
         );
       };
-      transaction.objectStore(STORE).put(snapshot, ACTIVE);
+      transaction.objectStore(STORE).put(snapshot, key);
     } catch (error) {
       db.close();
       reject(error);
