@@ -1,4 +1,5 @@
 import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
+import { isValidRules, type DisplayRule } from "./rules";
 export type ElementKind = "device" | "text" | "metric" | "chart";
 
 export interface DiagramElement {
@@ -11,6 +12,7 @@ export interface DiagramElement {
   width: number;
   height: number;
   color: string;
+  rules?: DisplayRule[];
   rotation?: number;
   binding?: string;
   historyMinutes?: number;
@@ -147,6 +149,7 @@ export function parseDocument(value: unknown): DiagramDocument {
   for (const item of value.elements) {
     if (
       !record(item) ||
+      (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
       !["device", "text", "metric", "chart"].includes(String(item.kind)) ||
