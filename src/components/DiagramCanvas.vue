@@ -14,6 +14,8 @@ const props = defineProps<{
   drawingTool?: LineKind | null;
   document: DiagramDocument;
   readonly?: boolean;
+  viewScale?: number;
+  showGrid?: boolean;
   imagePreview?: { elementId: string; imageId: string };
   selectedId: string | null;
   selectedIds?: string[];
@@ -323,15 +325,15 @@ function pointerMove(event: MouseEvent) {
     const { item, kind, x, y } = transform;
     if (kind === "resize")
       emit("transform", item.id, {
-        width: Math.max(20, item.width + event.clientX - x),
-        height: Math.max(20, item.height + event.clientY - y),
+        width: Math.max(20, item.width + (event.clientX - x)/(props.viewScale||1)),
+        height: Math.max(20, item.height + (event.clientY - y)/(props.viewScale||1)),
       });
     else {
       const rect = container.value!.getBoundingClientRect();
       const angle =
         (Math.atan2(
-          event.clientY - rect.top - item.y - item.height / 2,
-          event.clientX - rect.left - item.x - item.width / 2,
+          (event.clientY - rect.top)/(props.viewScale||1) - item.y - item.height / 2,
+          (event.clientX - rect.left)/(props.viewScale||1) - item.x - item.width / 2,
         ) *
           180) /
           Math.PI +
@@ -341,8 +343,8 @@ function pointerMove(event: MouseEvent) {
   }
   if (marquee.value) {
     const rect = container.value!.getBoundingClientRect();
-    marquee.value.width = event.clientX - rect.left - marquee.value.x;
-    marquee.value.height = event.clientY - rect.top - marquee.value.y;
+    marquee.value.width = (event.clientX - rect.left)/(props.viewScale||1) - marquee.value.x;
+    marquee.value.height = (event.clientY - rect.top)/(props.viewScale||1) - marquee.value.y;
   }
 }
 function finish() {
@@ -379,6 +381,7 @@ function finish() {
     }"
   >
     <PageBackground :document="document" />
+    <div v-if="showGrid" data-testid="canvas-grid" style="position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#9caebc 0.8px, transparent 0.8px);background-size:20px 20px"></div>
     <div
       ref="container"
       class="diagram-canvas"

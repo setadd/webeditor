@@ -20,6 +20,7 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import { createDemo } from "./domain/demo";
 import { readProjectFile, exportProject } from "./storage/projectTransfer";
 import StatesPanel from "./components/StatesPanel.vue";
 import type { ImageAsset } from "./domain/assets";
@@ -33,6 +34,7 @@ import { useLayers } from "./composables/useLayers";
 import FlowPanel from "./components/FlowPanel.vue";
 import LineProperties from "./components/LineProperties.vue";
 import type { LineKind } from "./domain/lines";
+import CanvasViewport from "./components/CanvasViewport.vue";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
 import RuntimeView from "./components/RuntimeView.vue";
 import { usePublication } from "./composables/usePublication";
@@ -44,6 +46,7 @@ import { isColor, type DiagramElement } from "./domain/document";
 const drawingTool = ref<LineKind | null>(null);
 const editor = useEditor();
 const importing = ref(false);
+async function loadDemo() { if(await confirmReplacement()){ editor.replaceDraft(createDemo()); drawingTool.value=null;imagePreview.value=undefined; } }
 async function importProject(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -316,6 +319,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="project-actions">
+          <el-button :disabled="busy" @click="loadDemo">载入演示项目</el-button>
           <el-button :disabled="busy" @click="exportProject(doc)"
             >导出项目</el-button
           >
@@ -468,12 +472,7 @@ onBeforeUnmount(() => {
               >{{ doc.page.width }} × {{ doc.page.height }}</span
             >
           </div>
-          <div class="canvas-scroll">
-            <div class="sheet-wrap" :style="{ width: `${doc.page.width}px` }">
-              <div class="sheet-caption">
-                <span><i></i> {{ doc.name }}</span
-                ><span>画布 · px</span>
-              </div>
+          <CanvasViewport :document="doc" v-slot="view">
               <div
                 class="canvas-sheet"
                 :style="{
@@ -482,6 +481,8 @@ onBeforeUnmount(() => {
                 }"
               >
                 <DiagramCanvas
+                  :view-scale="view.scale"
+                  :show-grid="view.grid"
                   :image-preview="imagePreview"
                   :drawing-tool="drawingTool"
                   @draw="addLine"
@@ -509,8 +510,7 @@ onBeforeUnmount(() => {
                   >
                 </div>
               </div>
-            </div>
-          </div>
+          </CanvasViewport>
           <footer class="canvas-footer">
             <span
               ><i class="status-dot"></i>
@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
                   ? `已选择：${selected.name || "未命名图元"}`
                   : "就绪，选择一个图元开始编辑"
               }}</span
-            ><span>{{ doc.elements.length }} 个图元 <b>·</b> 100%</span>
+            ><span>{{ doc.elements.length }} 个图元</span>
           </footer>
         </section>
         <aside class="properties-panel">

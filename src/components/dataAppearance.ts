@@ -61,8 +61,11 @@ export function dataAppearance(
     body: { fill: "#fff", stroke: "#cbd5e1", rx: 6 },
     label: {
       text: item.text,
+      x: 0,
+      y: 0,
       refX: 12,
       refY: 18,
+      textWrap: { width: item.width - 24, height: 24, ellipsis: true },
       textAnchor: "start",
       fontSize: 13,
       fill: "#334155",

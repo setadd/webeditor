@@ -2,6 +2,7 @@
 import { evaluateRules, rulePointIds } from "../domain/rules";
 import { computed, ref, toRef, watch } from "vue";
 import { useMockData } from "../data/useMockData";
+import CanvasViewport from "./CanvasViewport.vue";
 import DiagramCanvas from "./DiagramCanvas.vue";
 import PageControls from "./PageControls.vue";
 import { activatePage, pageSnapshots } from "../composables/usePages";
@@ -28,7 +29,9 @@ function state(item: DiagramElement) {
     ).abnormal
   )
     return "数据异常";
-  return item.binding || rulePointIds(item.rules).length ? "正常" : "未绑定";
+  return item.binding || rulePointIds(item.rules).length
+    ? "数据正常"
+    : "未绑定";
 }
 const filtered = computed(() =>
   props.document.elements.filter(
@@ -109,9 +112,9 @@ watch(
           >按名称筛选<input aria-label="按名称筛选" v-model="nameFilter"
         /></label>
         <label
-          >按状态筛选<select aria-label="按状态筛选" v-model="statusFilter">
+          >按数据状态筛选<select aria-label="按状态筛选" v-model="statusFilter">
             <option value="all">全部状态</option>
-            <option>正常</option>
+            <option>数据正常</option>
             <option>数据异常</option>
             <option>未绑定</option>
           </select></label
@@ -144,8 +147,10 @@ watch(
           </select></label
         ><small>作用于本页历史图表，退出后恢复配置。</small>
       </aside>
-      <div class="runtime-canvas">
+      <CanvasViewport :document="renderDocument" v-slot="view">
         <DiagramCanvas
+          :view-scale="view.scale"
+          :show-grid="view.grid"
           :document="renderDocument"
           :samples="samples"
           :history="rangeHistory"
@@ -153,7 +158,7 @@ watch(
           readonly
           @select="click"
         />
-      </div>
+      </CanvasViewport>
     </div>
     <el-dialog
       :model-value="!!detail"

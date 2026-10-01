@@ -61,6 +61,7 @@ export function useEditor() {
     }
   }
   function resetHistory() {
+    clipboard = [];
     past.value = [];
     future.value = [];
     gesture = null;
@@ -195,8 +196,12 @@ export function useEditor() {
   }
   function paste() {
     if (!clipboard.length) return;
-    const dx=Math.max(0,Math.min(24,...clipboard.map(e=>document.value.page.width-e.x-e.width)));
-    const dy=Math.max(0,Math.min(24,...clipboard.map(e=>document.value.page.height-e.y-e.height)));
+    const left=Math.min(...clipboard.map(e=>e.x)),top=Math.min(...clipboard.map(e=>e.y));
+    const right=Math.max(...clipboard.map(e=>e.x+e.width)),bottom=Math.max(...clipboard.map(e=>e.y+e.height));
+    if(right-left>document.value.page.width || bottom-top>document.value.page.height){error.value="无法粘贴：所选图元整体尺寸超出当前页面，请扩大画布或减少选择。";return;}
+    const dx=Math.max(-left,Math.min(24,document.value.page.width-right));
+    const dy=Math.max(-top,Math.min(24,document.value.page.height-bottom));
+    error.value="";
     const groups = new Map<string,string>();
     for (const item of clipboard) if(item.groupId) groups.set(item.groupId,crypto.randomUUID());
     const items = clipboard.map((e) => ({
