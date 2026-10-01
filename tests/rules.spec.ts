@@ -126,3 +126,66 @@ test("缺失、空值、NaN、不可用及未命中规则依赖都保守回退�
   expect(base.flow.direction).toBe("forward");
   expect(evaluateRules(base, [], {}, "temperature").abnormal).toBe(true);
 });
+test("流动规则按优先级、异常恢复与条件解除返回基础速度", () => {
+  const base = {
+    color: "#00ff00",
+    flow: { enabled: true, direction: "forward" as const, speed: 1 },
+  };
+  const rules: DisplayRule[] = [
+    {
+      id: "stop",
+      mode: "all",
+      conditions: [{ pointId: "running", operator: "eq", value: 0 }],
+      effects: { flow: { enabled: true, direction: "stopped", speed: 1 } },
+    },
+    {
+      id: "reverse",
+      mode: "all",
+      conditions: [{ pointId: "flow", operator: "lt", value: 0 }],
+      effects: { flow: { enabled: true, direction: "reverse", speed: 3 } },
+    },
+    {
+      id: "color",
+      mode: "all",
+      conditions: [{ pointId: "flow", operator: "lt", value: 0 }],
+      effects: { color: "#ff0000" },
+    },
+  ];
+  const samples = {
+    running: { value: 1, quality: "good" },
+    flow: { value: -5, quality: "good" },
+  };
+  expect(evaluateRules(base, rules, samples)).toEqual({
+    color: "#ff0000",
+    flow: { enabled: true, direction: "reverse", speed: 3 },
+    abnormal: false,
+  });
+  expect(
+    evaluateRules(base, rules, {
+      ...samples,
+      running: { value: 0, quality: "good" },
+    }).flow?.direction,
+  ).toBe("stopped");
+  expect(
+    evaluateRules(base, rules, {
+      ...samples,
+      flow: { value: -5, quality: "unavailable" },
+    }),
+  ).toEqual({
+    ...base,
+    flow: { ...base.flow, direction: "stopped" },
+    abnormal: true,
+  });
+  expect(evaluateRules(base, rules, samples).flow).toEqual({
+    enabled: true,
+    direction: "reverse",
+    speed: 3,
+  });
+  expect(
+    evaluateRules(base, rules, {
+      ...samples,
+      flow: { value: 5, quality: "good" },
+    }),
+  ).toEqual({ ...base, abnormal: false });
+  expect(base.flow).toEqual({ enabled: true, direction: "forward", speed: 1 });
+});
