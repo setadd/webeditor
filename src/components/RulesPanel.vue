@@ -2,7 +2,11 @@
 import type { DiagramElement } from "../domain/document";
 import type { DisplayRule, RuleCondition, FlowEffect } from "../domain/rules";
 import { mockDataProvider } from "../data/useMockData";
-const props = defineProps<{ selected?: DiagramElement }>();
+import type { ImageAsset } from "../domain/assets";
+const props = defineProps<{
+  selected?: DiagramElement;
+  assets?: Record<string, ImageAsset>;
+}>();
 const emit = defineEmits<{ change: [id: string, rules: DisplayRule[]] }>();
 const points = mockDataProvider.catalog();
 const operators = {
@@ -172,6 +176,25 @@ function move(i: number, delta: number) {
       >
         添加条件
       </button>
+      <label v-if="selected.kind === 'device'"
+        >状态图片<select
+          :aria-label="`规则${i + 1}状态图片`"
+          :disabled="!selected.defaultImageId"
+          :value="rule.effects.imageId || ''"
+          @change="
+            edit((r) => {
+              const value = ($event.target as HTMLSelectElement).value;
+              if (value) r[i]!.effects.imageId = value;
+              else delete r[i]!.effects.imageId;
+            })
+          "
+        >
+          <option value="">不改变图片</option>
+          <option v-for="asset in assets" :key="asset.id" :value="asset.id">
+            {{ asset.name }}
+          </option>
+        </select></label
+      >
       <label
         >颜色
         <input
