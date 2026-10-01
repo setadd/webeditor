@@ -20,6 +20,7 @@ import {
   Pointer,
   InfoFilled,
 } from "@element-plus/icons-vue";
+import BackgroundPanel from "./components/BackgroundPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
@@ -524,6 +525,20 @@ onBeforeUnmount(() => {
             <p>④ 保存你的工作</p>
           </div>
         </div>
+        <BackgroundPanel
+          :document="doc"
+          :disabled="busy || loadBlocked"
+          @change="
+            (background, asset) =>
+              editor.mutate(() => {
+                if (asset) {
+                  doc.assets ||= {};
+                  doc.assets[asset.id] = asset;
+                }
+                doc.page.background = background;
+              })
+          "
+        />
         <DataPanel
           @range="(id, historyMinutes) => editor.update(id, { historyMinutes })"
           :selected="selected"

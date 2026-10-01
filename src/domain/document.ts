@@ -1,3 +1,4 @@
+import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
 export type ElementKind = "device" | "text" | "metric" | "chart";
 
 export interface DiagramElement {
@@ -19,7 +20,13 @@ export interface DiagramDocument {
   formatVersion: 1;
   id: string;
   name: string;
-  page: { id: string; width: number; height: number };
+  page: {
+    id: string;
+    width: number;
+    height: number;
+    background?: PageBackground;
+  };
+  assets?: Record<string, ImageAsset>;
   elements: DiagramElement[];
   savedAt: string | null;
 }
@@ -105,6 +112,30 @@ export function parseDocument(value: unknown): DiagramDocument {
   ) {
     return invalid();
   }
+  if (
+    value.assets !== undefined &&
+    (!record(value.assets) ||
+      Object.entries(value.assets).some(
+        ([id, asset]) => !isImageAsset(asset) || id !== asset.id,
+      ))
+  )
+    return invalid();
+  const bg = value.page.background;
+  if (
+    bg !== undefined &&
+    (!record(bg) ||
+      typeof bg.color !== "string" ||
+      !isColor(bg.color) ||
+      !["contain", "cover", "stretch", "tile"].includes(String(bg.mode)) ||
+      !finite(bg.opacity) ||
+      bg.opacity < 0 ||
+      bg.opacity > 1 ||
+      (bg.imageId !== undefined &&
+        (typeof bg.imageId !== "string" ||
+          !record(value.assets) ||
+          !Object.hasOwn(value.assets, bg.imageId))))
+  )
+    return invalid();
   const ids = new Set<string>();
   for (const item of value.elements) {
     if (

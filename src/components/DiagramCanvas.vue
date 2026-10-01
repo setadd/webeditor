@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageBackground from "./PageBackground.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
@@ -186,7 +187,7 @@ onMounted(() => {
     width: props.document.page.width,
     height: props.document.page.height,
     grid: { size: 1, visible: false },
-    background: { color: "#ffffff" },
+    background: { color: "transparent" },
     translating: { restrict: true },
     interacting: { nodeMovable: true, magnetConnectable: false },
     connecting: { snap: false, allowBlank: false },
@@ -227,7 +228,13 @@ onMounted(() => {
   synchronize();
 });
 watch(
-  () => [props.document, props.selectedId, props.selectedIds, props.samples, props.history],
+  () => [
+    props.document,
+    props.selectedId,
+    props.selectedIds,
+    props.samples,
+    props.history,
+  ],
   synchronize,
   { deep: true },
 );
@@ -308,6 +315,7 @@ function finish() {
 
 <template>
   <div style="position: relative">
+    <PageBackground :document="document" />
     <div
       ref="container"
       class="diagram-canvas"
