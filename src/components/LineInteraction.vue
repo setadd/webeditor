@@ -114,6 +114,8 @@ function end() {
   window.removeEventListener("mouseup", end);
 }
 function key(e: KeyboardEvent) {
+  if ((e.target as HTMLElement | null)?.closest("input,textarea,select,[contenteditable=true],[role=dialog]") ||
+      Array.from(document.querySelectorAll<HTMLElement>(".el-overlay-dialog")).some(dialog => dialog.getClientRects().length > 0)) return;
   if (e.key === "Escape" && props.tool) emit("cancel");
   if (e.key === "Enter" && props.tool) finish();
 }

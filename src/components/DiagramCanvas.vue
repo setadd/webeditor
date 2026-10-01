@@ -323,11 +323,36 @@ function pointerMove(event: MouseEvent) {
   if (props.readonly) return;
   if (transform) {
     const { item, kind, x, y } = transform;
-    if (kind === "resize")
+    if (kind === "resize") {
+      const dx = (event.clientX - x) / (props.viewScale || 1);
+      const dy = (event.clientY - y) / (props.viewScale || 1);
+      const radians = (item.rotation || 0) * Math.PI / 180;
+      const cos = Math.cos(radians), sin = Math.sin(radians);
+      const dw = Math.max(20, item.width + cos * dx + sin * dy) - item.width;
+      const dh = Math.max(20, item.height - sin * dx + cos * dy) - item.height;
+      // Resizing is in the node's axes. Move its center to keep the opposite corner fixed.
+      const shiftX = ((cos - 1) * dw - sin * dh) / 2;
+      const shiftY = (sin * dw + (cos - 1) * dh) / 2;
+      // Stop the whole gesture at the first document boundary instead of independently
+      // clamping x/y and making the anchored corner jump.
+      const margins = [
+        [item.x, shiftX],
+        [item.y, shiftY],
+        [props.document.page.width - item.x - item.width, -shiftX - dw],
+        [props.document.page.height - item.y - item.height, -shiftY - dh],
+      ];
+      let fraction = 1;
+      for (const [margin, change] of margins) {
+        if (change! < 0) fraction = Math.min(fraction, margin! / -change!);
+      }
+      fraction = Math.max(0, fraction);
       emit("transform", item.id, {
-        width: Math.max(20, item.width + (event.clientX - x)/(props.viewScale||1)),
-        height: Math.max(20, item.height + (event.clientY - y)/(props.viewScale||1)),
+        x: item.x + shiftX * fraction,
+        y: item.y + shiftY * fraction,
+        width: item.width + dw * fraction,
+        height: item.height + dh * fraction,
       });
+    }
     else {
       const rect = container.value!.getBoundingClientRect();
       const angle =
