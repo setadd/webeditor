@@ -88,17 +88,27 @@ export function useEditor() {
       pruneSelection();
     }
   }
-  function select(id: string | null, additive = false) {
-    if (!id) {
-      selectedIds.value = [];
-      return;
-    }
-    if (additive) {
-      selectedIds.value = selectedIds.value.includes(id)
-        ? selectedIds.value.filter((x) => x !== id)
-        : [...selectedIds.value, id];
-    } else selectedId.value = id;
+  function members(id: string) {
+    const item = document.value.elements.find(e => e.id === id);
+    return item?.groupId ? document.value.elements.filter(e => e.groupId === item.groupId) : item ? [item] : [];
   }
+  function canEdit(id: string) { return members(id).every(e => !e.locked); }
+  function select(id: string | null, additive = false) {
+    if (!id) { selectedIds.value=[]; return; }
+    const ids = members(id).map(e => e.id);
+    selectedIds.value = additive ? selectedIds.value.includes(id) ? selectedIds.value.filter(x=>!ids.includes(x)) : [...new Set([...selectedIds.value,...ids])] : ids;
+  }
+  function move(id: string, x: number, y: number) {
+    const item = document.value.elements.find(e=>e.id===id);
+    if(!item || !canEdit(id))return;
+    const ids = new Set(selectedIds.value.includes(id) ? selectedIds.value.flatMap(id=>members(id).map(e=>e.id)) : members(id).map(e=>e.id));
+    const items = document.value.elements.filter(e=>ids.has(e.id)&&canEdit(e.id));
+    let dx=x-item.x,dy=y-item.y;
+    dx=Math.max(-Math.min(...items.map(e=>e.x)),Math.min(dx,document.value.page.width-Math.max(...items.map(e=>e.x+e.width))));
+    dy=Math.max(-Math.min(...items.map(e=>e.y)),Math.min(dy,document.value.page.height-Math.max(...items.map(e=>e.y+e.height))));
+    commitMutation(()=>items.forEach(e=>{e.x+=dx;e.y+=dy;}));
+  }
+  function selectMany(ids: string[]) { selectedIds.value = [...new Set(ids.flatMap(id=>members(id).map(e=>e.id)))]; }
   function selectAll() {
     selectedIds.value = document.value.elements.map((e) => e.id);
   }
@@ -135,7 +145,13 @@ export function useEditor() {
   ) {
     commitMutation(() => {
       const item = document.value.elements.find((e) => e.id === id);
-      if (!item) return;
+      if (!item || !canEdit(id)) return;
+      if (item.groupId && (patch.x !== undefined || patch.y !== undefined) && patch.width === undefined && patch.height === undefined && patch.line === undefined) {
+        const peers=members(id);
+        const dx=Math.max(-Math.min(...peers.map(e=>e.x)),Math.min((patch.x??item.x)-item.x,document.value.page.width-Math.max(...peers.map(e=>e.x+e.width))));
+        const dy=Math.max(-Math.min(...peers.map(e=>e.y)),Math.min((patch.y??item.y)-item.y,document.value.page.height-Math.max(...peers.map(e=>e.y+e.height))));
+        peers.forEach(e=>{e.x+=dx;e.y+=dy;});return;
+      }
       const next = { ...item, ...patch };
       next.width = Math.max(
         20,
@@ -159,7 +175,7 @@ export function useEditor() {
   function remove() {
     commitMutation(() => {
       document.value.elements = document.value.elements.filter(
-        (e) => !selectedIds.value.includes(e.id),
+        (e) => !selectedIds.value.includes(e.id) || !canEdit(e.id),
       );
     });
     selectedIds.value = [];
@@ -171,11 +187,16 @@ export function useEditor() {
   }
   function paste() {
     if (!clipboard.length) return;
+    const dx=Math.max(0,Math.min(24,...clipboard.map(e=>document.value.page.width-e.x-e.width)));
+    const dy=Math.max(0,Math.min(24,...clipboard.map(e=>document.value.page.height-e.y-e.height)));
+    const groups = new Map<string,string>();
+    for (const item of clipboard) if(item.groupId) groups.set(item.groupId,crypto.randomUUID());
     const items = clipboard.map((e) => ({
       ...clone(e),
       id: crypto.randomUUID(),
-      x: Math.min(e.x + 24, document.value.page.width - e.width),
-      y: Math.min(e.y + 24, document.value.page.height - e.height),
+      groupId: e.groupId ? groups.get(e.groupId) : undefined,
+      x: e.x + dx,
+      y: e.y + dy,
     }));
     commitMutation(() => document.value.elements.push(...items));
     selectedIds.value = items.map((e) => e.id);
@@ -224,7 +245,10 @@ export function useEditor() {
     update,
     save,
     select,
+    move,
+    canEdit,
     selectAll,
+    selectMany,
     remove,
     copy,
     paste,

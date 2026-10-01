@@ -14,6 +14,9 @@ export interface DiagramElement {
   height: number;
   color: string;
   rules?: DisplayRule[];
+  locked?: boolean;
+  visible?: boolean;
+  groupId?: string;
   rotation?: number;
   line?: LineGeometry;
   binding?: string;
@@ -153,6 +156,9 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
   for (const item of value.elements) {
     if (
       !record(item) ||
+      (item.locked !== undefined && typeof item.locked !== "boolean") ||
+      (item.visible !== undefined && typeof item.visible !== "boolean") ||
+      (item.groupId !== undefined && !nonEmpty(item.groupId)) ||
       (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
