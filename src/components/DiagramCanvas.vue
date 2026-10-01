@@ -5,10 +5,13 @@ import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import { evaluateRules } from "../domain/rules";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
 
+import LineInteraction from "./LineInteraction.vue";
+import { lineAppearance, lineMarkup, type LineKind } from "../domain/lines";
 import { dataAppearance, chartMarkup } from "./dataAppearance";
 import type { Sample, HistorySample } from "../data/useMockData";
 
 const props = defineProps<{
+  drawingTool?: LineKind | null;
   document: DiagramDocument;
   readonly?: boolean;
   imagePreview?: { elementId: string; imageId: string };
@@ -18,6 +21,8 @@ const props = defineProps<{
   history?: Record<string, HistorySample[]>;
 }>();
 const emit = defineEmits<{
+  draw: [item: DiagramElement];
+  cancelDraw: [];
   select: [id: string | null, additive?: boolean];
   selectMany: [ids: string[]];
   gestureStart: [];
@@ -30,9 +35,11 @@ let graph: Graph | undefined;
 let syncing = false;
 
 function appearance(item: DiagramElement): CellAttrs {
+  if (item.kind === "line") return lineAppearance(item);
   const active =
     !props.readonly &&
     (props.selectedIds || [props.selectedId]).includes(item.id);
+
   if (item.kind === "text") {
     return {
       body: {
@@ -193,6 +200,7 @@ function addNode(item: DiagramElement): Node {
     ...(item.kind === "chart" || item.kind === "metric"
       ? { markup: chartMarkup }
       : {}),
+    ...(item.kind === "line" ? { markup: lineMarkup } : {}),
     attrs: effectiveAppearance(item),
   });
 }
@@ -400,6 +408,18 @@ function finish() {
       }"
       >数据异常：{{ item.name }}</span
     >
+    <LineInteraction
+      v-if="!readonly"
+      :document="document"
+      :tool="drawingTool"
+      :selected="activeItem"
+      @draw="emit('draw', $event)"
+      @cancel="emit('cancelDraw')"
+      @transform="(id, patch) => emit('transform', id, patch)"
+      @start="emit('gestureStart')"
+      @end="emit('gestureEnd')"
+    />
+
     <div
       v-if="marquee"
       class="marquee"

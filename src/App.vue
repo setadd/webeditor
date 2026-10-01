@@ -24,8 +24,11 @@ import StatesPanel from "./components/StatesPanel.vue";
 import type { ImageAsset } from "./domain/assets";
 import BackgroundPanel from "./components/BackgroundPanel.vue";
 import RulesPanel from "./components/RulesPanel.vue";
+import InteractionPanel from "./components/InteractionPanel.vue";
 import DataPanel from "./components/DataPanel.vue";
 import { useMockData } from "./data/useMockData";
+import LineProperties from "./components/LineProperties.vue";
+import type { LineKind } from "./domain/lines";
 import DiagramCanvas from "./components/DiagramCanvas.vue";
 import RuntimeView from "./components/RuntimeView.vue";
 import { usePublication } from "./composables/usePublication";
@@ -34,6 +37,7 @@ import { usePages } from "./composables/usePages";
 import { useEditor } from "./composables/useEditor";
 import { isColor, type DiagramElement } from "./domain/document";
 
+const drawingTool = ref<LineKind | null>(null);
 const editor = useEditor();
 const imagePreview = ref<{ elementId: string; imageId: string }>();
 function uploadState(id: string, asset: ImageAsset, isDefault: boolean) {
@@ -54,6 +58,12 @@ function uploadState(id: string, asset: ImageAsset, isDefault: boolean) {
     }
   });
   imagePreview.value = undefined;
+}
+
+function addLine(item: DiagramElement) {
+  editor.mutate(() => doc.value.elements.push(item));
+  editor.select(item.id);
+  drawingTool.value = null;
 }
 const {
   document: doc,
@@ -414,6 +424,21 @@ onBeforeUnmount(() => {
             ><span>已选 {{ selectedIds.length }} 项</span>
           </div>
           <div class="canvas-toolbar">
+            <button
+              v-for="tool in [
+                { id: 'straight', name: '直线' },
+                { id: 'polyline', name: '折线' },
+                { id: 'curve', name: '曲线' },
+              ] as const"
+              :key="tool.id"
+              :aria-label="'绘制' + tool.name"
+              @click="drawingTool = tool.id"
+            >
+              {{ tool.name }}
+            </button>
+            <button v-if="drawingTool" @click="drawingTool = null">
+              取消绘制
+            </button>
             <span class="tool-selected"
               ><el-icon><Pointer /></el-icon> 选择 / 移动</span
             ><span class="toolbar-divider"></span
@@ -437,6 +462,9 @@ onBeforeUnmount(() => {
               >
                 <DiagramCanvas
                   :image-preview="imagePreview"
+                  :drawing-tool="drawingTool"
+                  @draw="addLine"
+                  @cancel-draw="drawingTool = null"
                   :document="doc"
                   :samples="samples"
                   :history="history"
@@ -488,6 +516,7 @@ onBeforeUnmount(() => {
               <div>
                 <strong>{{
                   {
+                    line: "自由线条",
                     device: "设备图元",
                     text: "文字图元",
                     metric: "指标图元",
@@ -581,6 +610,10 @@ onBeforeUnmount(() => {
                   />
                 </div>
               </el-form-item>
+              <LineProperties
+                :selected="selected"
+                @update="editor.update(selected.id, $event)"
+              />
               <div class="palette">
                 <button
                   v-for="color in palette"
@@ -651,6 +684,11 @@ onBeforeUnmount(() => {
             :assets="doc.assets"
             :selected="selected"
             @change="(id, rules) => editor.update(id, { rules })"
+          />
+          <InteractionPanel
+            :document="doc"
+            :selected="selected"
+            @change="(id, interaction) => editor.update(id, { interaction })"
           />
           <DataPanel
             @range="
