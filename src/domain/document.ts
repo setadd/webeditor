@@ -1,3 +1,5 @@
+import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
+import { isValidRules, type DisplayRule } from "./rules";
 export type ElementKind = "device" | "text" | "metric" | "chart";
 
 export interface DiagramElement {
@@ -10,6 +12,7 @@ export interface DiagramElement {
   width: number;
   height: number;
   color: string;
+  rules?: DisplayRule[];
   rotation?: number;
   binding?: string;
   historyMinutes?: number;
@@ -26,7 +29,13 @@ export interface DiagramDocument {
   formatVersion: 1;
   id: string;
   name: string;
-  page: { id: string; width: number; height: number };
+  page: {
+    id: string;
+    width: number;
+    height: number;
+    background?: PageBackground;
+  };
+  assets?: Record<string, ImageAsset>;
   elements: DiagramElement[];
   savedAt: string | null;
   otherPages?: DiagramPageSnapshot[];
@@ -113,11 +122,36 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
   ) {
     return invalid();
   }
+  if (
+    value.assets !== undefined &&
+    (!record(value.assets) ||
+      Object.entries(value.assets).some(
+        ([id, asset]) => !isImageAsset(asset) || id !== asset.id,
+      ))
+  )
+    return invalid();
+  const bg = value.page.background;
+  if (
+    bg !== undefined &&
+    (!record(bg) ||
+      typeof bg.color !== "string" ||
+      !isColor(bg.color) ||
+      !["contain", "cover", "stretch", "tile"].includes(String(bg.mode)) ||
+      !finite(bg.opacity) ||
+      bg.opacity < 0 ||
+      bg.opacity > 1 ||
+      (bg.imageId !== undefined &&
+        (typeof bg.imageId !== "string" ||
+          !record(value.assets) ||
+          !Object.hasOwn(value.assets, bg.imageId))))
+  )
+    return invalid();
   const ids = new Set<string>();
   for (const item of value.elements) {
     if (
       !record(item) ||
       (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
+      (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
       !["device", "text", "metric", "chart"].includes(String(item.kind)) ||
@@ -148,9 +182,22 @@ export function parseDocument(value: unknown, validateReferences = true): Diagra
     if (!Array.isArray(value.otherPages)) return invalid();
     const pageIds = new Set([value.page.id]);
     for (const page of value.otherPages) {
-      if (!record(page) || !record(page.page) || !nonEmpty(page.page.id) || pageIds.has(page.page.id)) return invalid();
+      if (
+        !record(page) ||
+        !record(page.page) ||
+        !nonEmpty(page.page.id) ||
+        pageIds.has(page.page.id)
+      )
+        return invalid();
       pageIds.add(page.page.id);
-      parseDocument({ ...page, formatVersion: 1, id: value.id, savedAt: null, otherPages: undefined }, false);
+      parseDocument({
+        ...page,
+        formatVersion: 1,
+        id: value.id,
+        assets: value.assets,
+        savedAt: null,
+        otherPages: undefined,
+      }, false);
       for (const element of page.elements as DiagramElement[]) {
         if (ids.has(element.id)) return invalid();
         ids.add(element.id);
