@@ -1,6 +1,12 @@
 import { isImageAsset, type ImageAsset, type PageBackground } from "./assets";
 import { isValidRules, type DisplayRule, type FlowEffect } from "./rules";
 import type { LineGeometry } from "./lines";
+import {
+  isVisual,
+  symbolNames,
+  type SymbolName,
+  type VisualStyle,
+} from "./visual";
 export type ElementKind = "device" | "text" | "metric" | "chart" | "line";
 
 export interface DiagramElement {
@@ -13,6 +19,8 @@ export interface DiagramElement {
   width: number;
   height: number;
   color: string;
+  symbol?: SymbolName;
+  visual?: VisualStyle;
   rules?: DisplayRule[];
   locked?: boolean;
   visible?: boolean;
@@ -161,10 +169,19 @@ export function parseDocument(
   for (const item of value.elements) {
     if (
       !record(item) ||
+      (item.symbol !== undefined &&
+        (typeof item.symbol !== "string" ||
+          !Object.hasOwn(symbolNames, item.symbol) ||
+          item.kind !== "device")) ||
+      (item.visual !== undefined && !isVisual(item.visual)) ||
       (item.locked !== undefined && typeof item.locked !== "boolean") ||
       (item.visible !== undefined && typeof item.visible !== "boolean") ||
       (item.groupId !== undefined && !nonEmpty(item.groupId)) ||
-      (item.interaction !== undefined && (!record(item.interaction) || !["details", "navigate"].includes(String(item.interaction.action)) || (item.interaction.action === "navigate" && !nonEmpty(item.interaction.pageId)))) ||
+      (item.interaction !== undefined &&
+        (!record(item.interaction) ||
+          !["details", "navigate"].includes(String(item.interaction.action)) ||
+          (item.interaction.action === "navigate" &&
+            !nonEmpty(item.interaction.pageId)))) ||
       (item.rules !== undefined && !isValidRules(item.rules)) ||
       !nonEmpty(item.id) ||
       ids.has(item.id) ||
@@ -244,7 +261,15 @@ export function parseDocument(
         !finite(l.strokeWidth) ||
         l.strokeWidth < 1 ||
         l.strokeWidth > 40 ||
-        !["solid", "dashed"].includes(String(l.dash)) ||
+        !["solid", "dashed", "dotted"].includes(String(l.dash)) ||
+        (l.flowColor !== undefined &&
+          (typeof l.flowColor !== "string" || !isColor(l.flowColor))) ||
+        (l.flowWidth !== undefined &&
+          (!finite(l.flowWidth) || l.flowWidth < 0.1 || l.flowWidth > 1)) ||
+        (l.lineCap !== undefined &&
+          !["round", "butt", "square"].includes(String(l.lineCap))) ||
+        (l.lineJoin !== undefined &&
+          !["round", "miter", "bevel"].includes(String(l.lineJoin))) ||
         typeof l.startArrow !== "boolean" ||
         typeof l.endArrow !== "boolean"
       )

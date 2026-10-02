@@ -20,8 +20,9 @@ export function dataAppearance(
   const text = !item.binding
     ? "未绑定点位"
     : good
-      ? `${sample.value}${unit ? " " + unit : ""}`
+      ? `${item.visual?.prefix ?? (item.kind === "text" && item.text ? item.text + ":" : "")}${item.visual?.decimals === undefined ? sample.value : sample.value!.toFixed(item.visual.decimals)}${item.visual?.suffix ?? (unit ? " " + unit : "")}`
       : "数据不可用";
+  if (item.kind === "text") return item.binding ? { label: { text } } : {};
   if (item.kind === "device")
     return item.binding
       ? { label: { text }, tag: { text: good ? "实时数据" : "数据异常" } }
@@ -38,7 +39,14 @@ export function dataAppearance(
         fontSize: 13,
         fill: "#64748b",
       },
-      value: { text, x: 12, y: 70, textAnchor: "start", fontSize: 22, fill: item.color },
+      value: {
+        text,
+        x: 12,
+        y: 70,
+        textAnchor: "start",
+        fontSize: 22,
+        fill: item.color,
+      },
       body: { fill: "#f0fdfa" },
     };
   if (item.kind !== "chart") return {};
@@ -70,7 +78,14 @@ export function dataAppearance(
       fontSize: 13,
       fill: "#334155",
     },
-    value: { text, x: 12, y: 40, textAnchor: "start", fontSize: 13, fill: item.color },
+    value: {
+      text,
+      x: 12,
+      y: 40,
+      textAnchor: "start",
+      fontSize: 13,
+      fill: item.color,
+    },
     plot: {
       role: "img",
       "aria-label": "历史趋势曲线",

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { visualBounds } from "../domain/visualBounds";
+import type { ComponentId } from "../domain/componentCatalog";
 import { componentMime, draggedComponent } from "./componentDrag";
-import type { ElementKind, DiagramDocument } from "../domain/document";
+import type { DiagramDocument } from "../domain/document";
 const props = defineProps<{
   document: DiagramDocument;
   acceptComponents?: boolean;
   fitOnOpen?: boolean;
 }>();
 const emit = defineEmits<{
-  addComponent: [kind: ElementKind, center: { x: number; y: number }];
+  addComponent: [kind: ComponentId, center: { x: number; y: number }];
 }>();
 const stage = ref<HTMLElement>();
 function dropPoint(event: DragEvent) {

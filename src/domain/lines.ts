@@ -5,7 +5,11 @@ export interface LineGeometry {
   type: LineKind;
   points: Point[];
   strokeWidth: number;
-  dash: "solid" | "dashed";
+  dash: "solid" | "dashed" | "dotted";
+  lineCap?: "butt" | "round" | "square";
+  lineJoin?: "miter" | "round" | "bevel";
+  flowColor?: string;
+  flowWidth?: number;
   startArrow: boolean;
   endArrow: boolean;
 }
@@ -67,10 +71,11 @@ export function lineAppearance(item: DiagramElement) {
       d,
       "data-flow-path": item.id,
       fill: "none",
-      stroke: "#ffffff",
-      strokeWidth: Math.max(0.8, line.strokeWidth * 0.45),
+      stroke: line.flowColor || "#ffffff",
+      strokeWidth: Math.max(0.8, line.strokeWidth * (line.flowWidth ?? 0.45)),
       strokeDasharray: "7 17",
       strokeLinecap: "round",
+      strokeLinejoin: line.lineJoin || "miter",
       pointerEvents: "none",
       opacity: running ? 1 : 0,
       style: {
@@ -95,7 +100,11 @@ export function lineAppearance(item: DiagramElement) {
       fill: "none",
       stroke: item.color,
       strokeWidth: line.strokeWidth,
-      strokeDasharray: line.dash === "dashed" ? "10 6" : "",
+      strokeDasharray:
+        line.dash === "dashed" ? "10 6" : line.dash === "dotted" ? "1 6" : "",
+      strokeLinecap:
+        line.lineCap || (line.dash === "dotted" ? "round" : "butt"),
+      strokeLinejoin: line.lineJoin || "miter",
       sourceMarker: line.startArrow ? { name: "classic", size: 8 } : null,
       targetMarker: line.endArrow ? { name: "classic", size: 8 } : null,
       pointerEvents: "none",

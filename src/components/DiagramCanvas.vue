@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CanvasArea } from "./canvasArea";
 import PageBackground from "./PageBackground.vue";
+import { applyVisual } from "./visualAppearance";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
 import { evaluateRules } from "../domain/rules";
@@ -88,6 +89,10 @@ function appearance(item: DiagramElement): CellAttrs {
       },
       label: {
         text: item.text,
+        refX: "50%",
+        refY: "50%",
+        textAnchor: "middle",
+        textVerticalAnchor: "middle",
         fill: item.color,
         fontSize: 20,
         fontWeight: 600,
@@ -175,6 +180,9 @@ function effectiveAppearance(item: DiagramElement) {
     flow: effective.flow,
   };
   const base = appearance(item);
+  if (base.body)
+    base.body = { refWidth: "100%", refHeight: "100%", ...base.body };
+  let hasImage = false;
   const data = dataAppearance(
     item,
     props.samples?.[item.binding || ""],
@@ -188,6 +196,7 @@ function effectiveAppearance(item: DiagramElement) {
         ? props.imagePreview.imageId
         : undefined;
     const asset = props.document.assets?.[preview || effective.imageId || ""];
+    hasImage = !!asset;
     for (const selector of [
       "accent",
       "iconBg",
@@ -211,7 +220,7 @@ function effectiveAppearance(item: DiagramElement) {
       display: asset ? "inline" : "none",
     };
   }
-  return base;
+  return applyVisual(item, base, hasImage);
 }
 
 function addNode(item: DiagramElement): Node {
@@ -230,6 +239,9 @@ function addNode(item: DiagramElement): Node {
             { tagName: "circle", selector: "iconBg" },
             { tagName: "circle", selector: "ring" },
             { tagName: "path", selector: "rotor" },
+            ...(item.symbol
+              ? [{ tagName: "image", selector: "symbolImage" }]
+              : []),
             { tagName: "text", selector: "name" },
             { tagName: "text", selector: "label" },
             { tagName: "text", selector: "tag" },
@@ -270,7 +282,7 @@ function synchronize() {
         node.position(item.x, item.y);
       node.resize(item.width, item.height);
       node.rotate(item.rotation || 0, { absolute: true });
-      node.setAttrs(effectiveAppearance(item));
+      node.setAttrs(effectiveAppearance(item), { overwrite: true });
     }
   } finally {
     syncing = false;

@@ -1,11 +1,11 @@
 import { computed, ref } from "vue";
 import { visualBounds } from "../domain/visualBounds";
+import { componentPreset, type ComponentId } from "../domain/componentCatalog";
 import {
   createDocument,
   createElement,
   type DiagramDocument,
   type DiagramElement,
-  type ElementKind,
 } from "../domain/document";
 import { loadDocument, saveDocument } from "../storage/localDocument";
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -172,8 +172,11 @@ export function useEditor() {
     error.value = "";
     loadBlocked.value = false;
   }
-  function add(kind: ElementKind, center?: { x: number; y: number }) {
-    const item = createElement(kind, document.value);
+  function add(kind: ComponentId, center?: { x: number; y: number }) {
+    const preset = componentPreset(kind);
+    const item = createElement(preset?.kind || "device", document.value);
+    if (preset?.preset)
+      Object.assign(item, clone(preset.preset), { name: preset.name });
     if (center) {
       item.x = Math.round(center.x - item.width / 2);
       item.y = Math.round(center.y - item.height / 2);

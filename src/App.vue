@@ -31,8 +31,10 @@ import EditorContextMenu from "./components/EditorContextMenu.vue";
 import { useEditorContextMenu } from "./composables/useEditorContextMenu";
 import "./workbench.css";
 import { createDemo } from "./domain/demo";
+import { createIndustrialExamples } from "./domain/industrialExamples";
 import { readProjectFile, exportProject } from "./storage/projectTransfer";
 import StatesPanel from "./components/StatesPanel.vue";
+import VisualProperties from "./components/VisualProperties.vue";
 import type { ImageAsset } from "./domain/assets";
 import BackgroundPanel from "./components/BackgroundPanel.vue";
 import RulesPanel from "./components/RulesPanel.vue";
@@ -59,6 +61,13 @@ const importing = ref(false);
 async function loadDemo() {
   if (await confirmReplacement()) {
     editor.replaceDraft(createDemo());
+    drawingTool.value = null;
+    imagePreview.value = undefined;
+  }
+}
+async function loadIndustrialExamples() {
+  if (await confirmReplacement()) {
+    editor.replaceDraft(createIndustrialExamples());
     drawingTool.value = null;
     imagePreview.value = undefined;
   }
@@ -442,6 +451,12 @@ watch(selectedId, () => {
               <button :disabled="busy" @click="projectAction(loadDemo)">
                 载入演示项目
               </button>
+              <button
+                :disabled="busy"
+                @click="projectAction(loadIndustrialExamples)"
+              >
+                载入工业组态示例
+              </button>
               <hr />
               <button
                 :disabled="busy || publishing"
@@ -750,6 +765,8 @@ watch(selectedId, () => {
                   <el-form-item label="显示文字" for="element-text"
                     ><el-input
                       id="element-text"
+                      type="textarea"
+                      :autosize="{ minRows: 1, maxRows: 5 }"
                       :model-value="selected.text"
                       maxlength="160"
                       @update:model-value="changeText('text', $event)"
@@ -823,6 +840,10 @@ watch(selectedId, () => {
                     @update="editor.update(selected.id, $event)"
                   />
                   <LineProperties
+                    :selected="selected"
+                    @update="editor.update(selected.id, $event)"
+                  />
+                  <VisualProperties
                     :selected="selected"
                     @update="editor.update(selected.id, $event)"
                   />

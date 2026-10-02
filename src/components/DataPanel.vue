@@ -31,7 +31,7 @@ function update(id: string) {
 </script>
 <template>
   <section class="data-panel">
-    <template v-if="selected && selected.kind !== 'text'">
+    <template v-if="selected">
       <h3>点位绑定</h3>
       <select
         aria-label="绑定点位"

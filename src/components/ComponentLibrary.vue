@@ -9,9 +9,10 @@ import {
   Plus,
 } from "@element-plus/icons-vue";
 import { componentMime } from "./componentDrag";
-import type { ElementKind } from "../domain/document";
+import { componentCatalog, type ComponentId } from "../domain/componentCatalog";
+import { symbolUrl } from "../domain/symbols";
 const props = defineProps<{ disabled?: boolean }>();
-function startDrag(event: DragEvent, kind: ElementKind) {
+function startDrag(event: DragEvent, kind: ComponentId) {
   if (props.disabled || !event.dataTransfer) {
     event.preventDefault();
     return;
@@ -19,46 +20,18 @@ function startDrag(event: DragEvent, kind: ElementKind) {
   event.dataTransfer.setData(componentMime, kind);
   event.dataTransfer.effectAllowed = "copy";
 }
-const emit = defineEmits<{ add: [kind: ElementKind] }>();
+const emit = defineEmits<{ add: [kind: ComponentId] }>();
 const category = ref("all"),
   query = ref("");
 const categories = [
   { id: "all", name: "全部", icon: Grid },
   { id: "device", name: "设备", icon: Cpu },
   { id: "data", name: "图表", icon: DataLine },
+  { id: "electrical", name: "电气", icon: Cpu },
+  { id: "equipment", name: "暖通", icon: Cpu },
   { id: "basic", name: "基础", icon: Picture },
 ];
-const items: {
-  kind: ElementKind;
-  name: string;
-  category: string;
-  description: string;
-}[] = [
-  {
-    kind: "device",
-    name: "设备",
-    category: "device",
-    description: "设备与多图片状态",
-  },
-  {
-    kind: "chart",
-    name: "趋势图",
-    category: "data",
-    description: "点位历史趋势",
-  },
-  {
-    kind: "metric",
-    name: "指标",
-    category: "data",
-    description: "实时数值与单位",
-  },
-  {
-    kind: "text",
-    name: "文字",
-    category: "basic",
-    description: "标题与说明文字",
-  },
-];
+const items = componentCatalog;
 const filtered = computed(() =>
   items.filter(
     (item) =>
@@ -98,17 +71,29 @@ const filtered = computed(() =>
       </p>
       <button
         v-for="item in filtered"
-        :key="item.kind"
+        :key="item.id"
         class="component-tile"
         :aria-label="'添加' + item.name"
         :disabled="disabled"
         :draggable="!disabled"
-        @dragstart="startDrag($event, item.kind)"
-        @click="emit('add', item.kind)"
+        @dragstart="startDrag($event, item.id)"
+        @click="emit('add', item.id)"
       >
         <div class="component-art">
+          <img
+            v-if="item.preset?.symbol"
+            :src="
+              symbolUrl(
+                item.preset.symbol,
+                item.preset.color || '#55bfea',
+                item.preset.visual,
+              )
+            "
+            :alt="item.name"
+            style="width: 80%; height: 75px; object-fit: contain"
+          />
           <svg
-            v-if="item.kind === 'device'"
+            v-else-if="item.kind === 'device'"
             viewBox="0 0 120 75"
             aria-hidden="true"
           >

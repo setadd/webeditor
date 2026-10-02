@@ -23,12 +23,28 @@ export interface DataProvider {
   history(id: string, from: number, to: number): HistorySample[];
 }
 const points: Point[] = [
+  { id: "voltage", name: "电压", unit: "V" },
+  { id: "current", name: "电流", unit: "A" },
+  { id: "power", name: "功率", unit: "kW" },
+  { id: "energy", name: "累计电量", unit: "kW·h" },
+  { id: "frequency", name: "频率", unit: "Hz" },
+  { id: "pressure", name: "压力", unit: "MPa" },
+  { id: "opening", name: "阀门开度", unit: "%" },
+  { id: "powerFactor", name: "功率因数", unit: "" },
   { id: "temperature", name: "温度", unit: "°C" },
   { id: "running", name: "运行状态", unit: "" },
   { id: "fault", name: "故障状态", unit: "" },
   { id: "flow", name: "流量", unit: "m³/h" },
 ];
 const values: Record<string, number> = {
+  voltage: 380,
+  current: 12.5,
+  power: 8.2,
+  energy: 41104.27,
+  frequency: 50,
+  pressure: 0.22,
+  opening: 100,
+  powerFactor: 0.98,
   temperature: 25,
   running: 1,
   fault: 0,
@@ -110,7 +126,7 @@ export function useMockData(
     () => [
       enabled?.value,
       document.value.page.id,
-      ...document.value.elements.flatMap(e => rulePointIds(e.rules)),
+      ...document.value.elements.flatMap((e) => rulePointIds(e.rules)),
       ...document.value.elements.map((e) => e.binding || ""),
     ],
     () => {
