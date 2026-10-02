@@ -5,6 +5,7 @@ import type { ElementKind, DiagramDocument } from "../domain/document";
 const props = defineProps<{
   document: DiagramDocument;
   acceptComponents?: boolean;
+  fitOnOpen?: boolean;
 }>();
 const emit = defineEmits<{
   addComponent: [kind: ElementKind, center: { x: number; y: number }];
@@ -15,13 +16,6 @@ function dropPoint(event: DragEvent) {
   const rect = stage.value.getBoundingClientRect();
   const x = (event.clientX - rect.left) / scale.value;
   const y = (event.clientY - rect.top) / scale.value;
-  if (
-    x < 0 ||
-    y < 0 ||
-    x > props.document.page.width ||
-    y > props.document.page.height
-  )
-    return;
   return { x, y };
 }
 function dragOver(event: DragEvent) {
@@ -46,11 +40,19 @@ const scale = ref(1),
   pan = ref(false),
   viewport = ref<HTMLElement>();
 const camera = ref({ x: 24, y: 24 });
+const viewportSize = ref({ width: 1, height: 1 });
+const area = computed(() => ({
+  x: -camera.value.x / scale.value,
+  y: -camera.value.y / scale.value,
+  width: viewportSize.value.width / scale.value,
+  height: viewportSize.value.height / scale.value,
+}));
+let resizeObserver: ResizeObserver | undefined;
 const spaceHeld = ref(false);
 const panning = computed(() => pan.value || spaceHeld.value);
 function zoom(value: number, anchor?: { x: number; y: number }) {
   if (!viewport.value) return;
-  const next = Math.max(0.1, Math.min(4, value));
+  const next = Math.max(Number.EPSILON, Math.min(4, value));
   const at = anchor || {
     x: viewport.value.clientWidth / 2,
     y: viewport.value.clientHeight / 2,
@@ -90,11 +92,23 @@ function resetKeys() {
   drag = null;
 }
 onMounted(() => {
+  const measure = () => {
+    if (viewport.value)
+      viewportSize.value = {
+        width: viewport.value.clientWidth,
+        height: viewport.value.clientHeight,
+      };
+  };
+  measure();
+  resizeObserver = new ResizeObserver(measure);
+  resizeObserver.observe(viewport.value!);
+  if (props.fitOnOpen) fit();
   window.addEventListener("keydown", keydown);
   window.addEventListener("keyup", keyup);
   window.addEventListener("blur", resetKeys);
 });
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
   window.removeEventListener("keydown", keydown);
   window.removeEventListener("keyup", keyup);
   window.removeEventListener("blur", resetKeys);
@@ -104,6 +118,7 @@ watch(
   () => {
     camera.value = { x: 24, y: 24 };
     scale.value = 1;
+    if (props.fitOnOpen) fit();
   },
 );
 const options = computed(() =>
@@ -135,8 +150,8 @@ const bounds = computed(() => {
     });
   return points.length
     ? {
-        left: Math.min(0, ...points.map((p) => p.x)),
-        top: Math.min(0, ...points.map((p) => p.y)),
+        left: Math.min(...points.map((p) => p.x)),
+        top: Math.min(...points.map((p) => p.y)),
         right: Math.max(...points.map((p) => p.x)),
         bottom: Math.max(...points.map((p) => p.y)),
       }
@@ -152,15 +167,11 @@ function fit() {
   const w = bounds.value.right - bounds.value.left + 32,
     h = bounds.value.bottom - bounds.value.top + 32;
   scale.value = Math.max(
-    0.1,
+    Number.EPSILON,
     Math.min(
       2,
-      Math.floor(
-        Math.min(
-          (viewport.value.clientWidth - 48) / w,
-          (viewport.value.clientHeight - 48) / h,
-        ) * 100,
-      ) / 100,
+      (viewport.value.clientWidth - 48) / w,
+      (viewport.value.clientHeight - 48) / h,
     ),
   );
   camera.value = {
@@ -179,9 +190,7 @@ function fit() {
 let drag: { x: number; y: number; cameraX: number; cameraY: number } | null =
   null;
 function start(e: PointerEvent) {
-  const outsidePage = !stage.value?.contains(e.target as Node);
-  if (e.button !== 1 && !(e.button === 0 && (panning.value || outsidePage)))
-    return;
+  if (e.button !== 1 && !(e.button === 0 && panning.value)) return;
   if ((e.target as HTMLElement).closest("button,input,select")) return;
   e.preventDefault();
   e.stopImmediatePropagation();
@@ -221,7 +230,7 @@ function end(e: PointerEvent) {
           @change="zoom(Number(($event.target as HTMLSelectElement).value))"
         >
           <option v-for="value in options" :key="value" :value="value">
-            {{ Math.round(value * 100) }}%
+            {{ Number((value * 100).toPrecision(4)) }}%
           </option>
         </select></label
       >
@@ -247,11 +256,13 @@ function end(e: PointerEvent) {
       ref="viewport"
       class="view-scroll"
       data-testid="view-scroll"
-      title="滚轮缩放；空格或中键拖动平移；外围空白处可直接拖动"
+      title="滚轮缩放；空格或中键拖动平移；空白处拖动框选"
       @dragover="dragOver"
       @drop="drop"
       :class="{ panning }"
       :style="{
+        backgroundColor: document.page.background?.color || '#ffffff',
+        backgroundImage: 'none',
         backgroundPosition: `${camera.x}px ${camera.y}px`,
         backgroundSize: `${16 * scale}px ${16 * scale}px`,
       }"
@@ -272,7 +283,7 @@ function end(e: PointerEvent) {
           height: document.page.height + 'px',
         }"
       >
-        <slot :scale="scale" :grid="grid" />
+        <slot :scale="scale" :grid="grid" :area="area" />
       </div>
     </div>
   </div>
@@ -315,7 +326,6 @@ function end(e: PointerEvent) {
 .view-stage {
   position: absolute;
   transform-origin: top left;
-  box-shadow: 0 1px 12px #22354412;
 }
 .panning,
 .panning * {

@@ -147,9 +147,10 @@ watch(
           </select></label
         ><small>作用于本页历史图表，退出后恢复配置。</small>
       </aside>
-      <CanvasViewport :document="renderDocument" v-slot="view">
+      <CanvasViewport :document="renderDocument" fit-on-open v-slot="view">
         <DiagramCanvas
           :view-scale="view.scale"
+          :area="view.area"
           :show-grid="view.grid"
           :document="renderDocument"
           :samples="samples"

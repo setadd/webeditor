@@ -163,7 +163,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   await context.close();
 });
 
-test("跨页面粘贴整体适应边界，超大选择拒绝且切项目清空剪贴板", async ({
+test("跨页面粘贴保留相对位置且切项目清空剪贴板", async ({
   page,
 }) => {
   await page.goto("/");
@@ -173,8 +173,8 @@ test("跨页面粘贴整体适应边界，超大选择拒绝且切项目清空�
   await page.getByRole("button", { name: "全选", exact: true }).click();
   await page.getByRole("button", { name: "复制", exact: true }).click();
   await page.getByRole("button", { name: "新建页面", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("画布宽度").fill("400");
-  await page.getByRole("dialog").getByLabel("画布高度").fill("300");
+  await page.getByRole("dialog").getByLabel("背景宽度").fill("400");
+  await page.getByRole("dialog").getByLabel("背景高度").fill("300");
   await page.getByRole("button", { name: "创建页面", exact: true }).click();
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
@@ -187,7 +187,7 @@ test("跨页面粘贴整体适应边界，超大选择拒绝且切项目清空�
   ).toHaveCount(0);
 });
 
-test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板", async ({ page }) => {
+test("超出背景尺寸的选择可粘贴，带图片的新项目不保留旧剪贴板", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
   await page.getByLabel("X 坐标", { exact: true }).fill("0");
@@ -196,13 +196,15 @@ test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板",
   await page.getByRole("button", { name: "全选", exact: true }).click();
   await page.getByRole("button", { name: "复制", exact: true }).click();
   await page.getByRole("button", { name: "新建页面", exact: true }).click();
-  await page.getByRole("dialog").getByLabel("画布宽度").fill("400");
-  await page.getByRole("dialog").getByLabel("画布高度").fill("300");
+  await page.getByRole("dialog").getByLabel("背景宽度").fill("400");
+  await page.getByRole("dialog").getByLabel("背景高度").fill("300");
   await page.getByRole("button", { name: "创建页面", exact: true }).click();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
-  await expect(page.getByRole("alert").filter({hasText:"整体尺寸超出"})).toBeVisible();
+  await expect(page.getByRole("button", {name: /选择图元/})).toHaveCount(2);
+  await expect(page.getByLabel("X 坐标", {exact:true})).toHaveValue("24");
+  await page.getByRole("button", {name: "保存到本机", exact:true}).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "载入演示项目", exact: true }).click();

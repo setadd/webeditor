@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CanvasArea } from "./canvasArea";
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import type { DiagramDocument, DiagramElement } from "../domain/document";
 import {
@@ -9,6 +10,8 @@ import {
 } from "../domain/lines";
 const props = defineProps<{
   document: DiagramDocument;
+  area: CanvasArea;
+  viewScale: number;
   tool?: LineKind | null;
   selected?: DiagramElement;
 }>();
@@ -34,20 +37,8 @@ watch(
 function local(e: MouseEvent) {
   const r = overlay.value!.getBoundingClientRect();
   return {
-    x: Math.max(
-      0,
-      Math.min(
-        props.document.page.width - 20,
-        ((e.clientX - r.left) * props.document.page.width) / r.width,
-      ),
-    ),
-    y: Math.max(
-      0,
-      Math.min(
-        props.document.page.height - 20,
-        ((e.clientY - r.top) * props.document.page.height) / r.height,
-      ),
-    ),
+    x: props.area.x + (e.clientX - r.left) / props.viewScale,
+    y: props.area.y + (e.clientY - r.top) / props.viewScale,
   };
 }
 function add(e: MouseEvent) {
@@ -81,7 +72,14 @@ function finish() {
 }
 let drag: { item: DiagramElement; points: Point[]; index: number } | undefined;
 function start(e: MouseEvent, index: number) {
-  if (props.selected?.locked || (props.selected?.groupId && props.document.elements.some(e=>e.groupId===props.selected?.groupId&&e.locked))) return;
+  if (
+    props.selected?.locked ||
+    (props.selected?.groupId &&
+      props.document.elements.some(
+        (e) => e.groupId === props.selected?.groupId && e.locked,
+      ))
+  )
+    return;
   e.preventDefault();
   e.stopPropagation();
   drag = {
@@ -114,8 +112,15 @@ function end() {
   window.removeEventListener("mouseup", end);
 }
 function key(e: KeyboardEvent) {
-  if ((e.target as HTMLElement | null)?.closest("input,textarea,select,[contenteditable=true],[role=dialog]") ||
-      Array.from(document.querySelectorAll<HTMLElement>(".el-overlay-dialog")).some(dialog => dialog.getClientRects().length > 0)) return;
+  if (
+    (e.target as HTMLElement | null)?.closest(
+      "input,textarea,select,[contenteditable=true],[role=dialog]",
+    ) ||
+    Array.from(
+      document.querySelectorAll<HTMLElement>(".el-overlay-dialog"),
+    ).some((dialog) => dialog.getClientRects().length > 0)
+  )
+    return;
   if (e.key === "Escape" && props.tool) emit("cancel");
   if (e.key === "Enter" && props.tool) finish();
 }
@@ -130,10 +135,20 @@ onBeforeUnmount(() => {
     ref="overlay"
     class="line-overlay"
     :class="{ drawing: tool }"
+    :style="{
+      left: area.x + 'px',
+      top: area.y + 'px',
+      width: area.width + 'px',
+      height: area.height + 'px',
+    }"
     @click="add"
   >
     <template v-if="tool"
-      ><svg width="100%" height="100%">
+      ><svg
+        width="100%"
+        height="100%"
+        :viewBox="`${area.x} ${area.y} ${area.width} ${area.height}`"
+      >
         <polyline
           :points="points.map((p) => `${p.x},${p.y}`).join(' ')"
           fill="none"
@@ -149,15 +164,36 @@ onBeforeUnmount(() => {
           fill="#0d9488"
         />
       </svg>
-      <div class="draw-tip" @click.stop>
+      <div
+        class="draw-tip"
+        :style="{
+          left: 12 / viewScale + 'px',
+          top: 12 / viewScale + 'px',
+          transform: `scale(${1 / viewScale})`,
+          transformOrigin: 'top left',
+        }"
+        @click.stop
+      >
         依次点击{{ tool === "curve" ? "起点、两个控制点、终点" : "路径点" }} ·
         Esc 取消
         <button :disabled="!complete" @click.stop="finish">完成线条</button>
       </div></template
     >
-    <template v-else-if="selected?.line && selected.visible !== false && !selected.locked && !(selected.groupId && document.elements.some(e=>e.groupId===selected?.groupId&&e.locked))"
+    <template
+      v-else-if="
+        selected?.line &&
+        selected.visible !== false &&
+        !selected.locked &&
+        !(
+          selected.groupId &&
+          document.elements.some(
+            (e) => e.groupId === selected?.groupId && e.locked,
+          )
+        )
+      "
       ><svg
         class="control-lines"
+        :viewBox="`${area.x} ${area.y} ${area.width} ${area.height}`"
         width="100%"
         height="100%"
         v-if="selected.line.type === 'curve'"
@@ -172,7 +208,7 @@ onBeforeUnmount(() => {
         :key="i"
         :aria-label="`路径点 ${i + 1}`"
         class="path-handle"
-        :style="{ left: p.x + 'px', top: p.y + 'px' }"
+        :style="{ left: p.x - area.x + 'px', top: p.y - area.y + 'px' }"
         @mousedown="start($event, i)"
       ></button
     ></template>
@@ -181,7 +217,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .line-overlay {
   position: absolute;
-  inset: 0;
   pointer-events: none;
   z-index: 3;
 }

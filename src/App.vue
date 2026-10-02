@@ -599,8 +599,11 @@ watch(selectedId, () => {
             >
               <el-icon><Delete /></el-icon>
             </button>
-            <span class="page-size" data-testid="page-size"
-              >{{ doc.page.width }} × {{ doc.page.height }}</span
+            <span
+              class="page-size"
+              data-testid="page-size"
+              :title="`背景参考尺寸 ${doc.page.width} × ${doc.page.height}`"
+              >无限画布</span
             >
           </div>
           <CanvasViewport
@@ -618,6 +621,7 @@ watch(selectedId, () => {
             >
               <DiagramCanvas
                 :view-scale="view.scale"
+                :area="view.area"
                 :show-grid="view.grid"
                 :image-preview="imagePreview"
                 :drawing-tool="drawingTool"
@@ -730,8 +734,6 @@ watch(selectedId, () => {
                       ><el-input-number
                         id="position-x"
                         :model-value="selected.x"
-                        :min="0"
-                        :max="doc.page.width - selected.width"
                         :precision="0"
                         controls-position="right"
                         @update:model-value="changePosition('x', $event)"
@@ -740,14 +742,14 @@ watch(selectedId, () => {
                       ><el-input-number
                         id="position-y"
                         :model-value="selected.y"
-                        :min="0"
-                        :max="doc.page.height - selected.height"
                         :precision="0"
                         controls-position="right"
                         @update:model-value="changePosition('y', $event)"
                     /></el-form-item>
                   </div>
-                  <p class="field-hint">从画布左上角计算，单位为 px</p>
+                  <p class="field-hint">
+                    相对原点的位置，支持负坐标，单位为 px
+                  </p>
                   <div class="position-grid">
                     <el-form-item
                       v-for="field in ['width', 'height', 'rotation'] as const"
@@ -762,13 +764,7 @@ watch(selectedId, () => {
                         :id="field"
                         :model-value="selected[field] || 0"
                         :min="field === 'rotation' ? 0 : 20"
-                        :max="
-                          field === 'rotation'
-                            ? 359
-                            : field === 'width'
-                              ? doc.page.width
-                              : doc.page.height
-                        "
+                        :max="field === 'rotation' ? 359 : undefined"
                         @update:model-value="changePosition(field, $event)"
                     /></el-form-item>
                   </div>
@@ -831,7 +827,7 @@ watch(selectedId, () => {
                 <h3>{{ doc.name }}</h3>
                 <p>选择画布中的图元<br />查看和编辑它的属性</p>
                 <dl>
-                  <dt>画布尺寸</dt>
+                  <dt>背景参考尺寸</dt>
                   <dd>{{ doc.page.width }} × {{ doc.page.height }}</dd>
                   <dt>图元数量</dt>
                   <dd>{{ doc.elements.length }} 个</dd>
@@ -905,7 +901,7 @@ watch(selectedId, () => {
               <div class="page-summary">
                 <strong>{{ doc.name }}</strong
                 ><span
-                  >{{ doc.page.width }} × {{ doc.page.height }} px ·
+                  >背景 {{ doc.page.width }} × {{ doc.page.height }} px ·
                   {{ doc.elements.length }} 个图元</span
                 >
               </div>
@@ -943,7 +939,9 @@ watch(selectedId, () => {
       width="440px"
       :close-on-click-modal="false"
     >
-      <p class="dialog-intro">设置页面名称和画布尺寸，开始新的编排。</p>
+      <p class="dialog-intro">
+        设置页面名称和背景参考尺寸，绘图区域不受尺寸限制。
+      </p>
       <el-form label-position="top" @submit.prevent="createPage">
         <el-form-item label="页面名称" for="new-page-name"
           ><el-input
@@ -953,7 +951,7 @@ watch(selectedId, () => {
             autofocus
         /></el-form-item>
         <div class="position-grid">
-          <el-form-item label="画布宽度" for="new-page-width"
+          <el-form-item label="背景宽度" for="new-page-width"
             ><el-input-number
               id="new-page-width"
               v-model="newPage.width"
@@ -961,7 +959,7 @@ watch(selectedId, () => {
               :max="3840"
               :precision="0"
               controls-position="right" /></el-form-item
-          ><el-form-item label="画布高度" for="new-page-height"
+          ><el-form-item label="背景高度" for="new-page-height"
             ><el-input-number
               id="new-page-height"
               v-model="newPage.height"
@@ -972,7 +970,8 @@ watch(selectedId, () => {
           /></el-form-item>
         </div>
         <p class="field-hint">
-          宽度 400–3840 px，高度 300–2160 px。页面保存在同一个本机项目中。
+          宽度 400–3840 px，高度 300–2160
+          px。仅用于背景图片铺放；图元可绘制在任意位置。
         </p>
       </el-form>
       <template #footer

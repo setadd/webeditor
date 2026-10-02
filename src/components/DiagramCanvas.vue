@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CanvasArea } from "./canvasArea";
 import PageBackground from "./PageBackground.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Graph, type Node, type CellAttrs } from "@antv/x6";
@@ -11,6 +12,7 @@ import { dataAppearance, chartMarkup } from "./dataAppearance";
 import type { Sample, HistorySample } from "../data/useMockData";
 
 const props = defineProps<{
+  area: CanvasArea;
   drawingTool?: LineKind | null;
   document: DiagramDocument;
   readonly?: boolean;
@@ -33,12 +35,19 @@ const emit = defineEmits<{
   move: [id: string, x: number, y: number];
 }>();
 const container = ref<HTMLDivElement>();
+const root = ref<HTMLDivElement>();
 let graph: Graph | undefined;
 let syncing = false;
 
-function isLocked(id:string) {
- const item=props.document.elements.find(e=>e.id===id);
- return !!item?.locked || !!item?.groupId && props.document.elements.some(e=>e.groupId===item.groupId&&e.locked);
+function isLocked(id: string) {
+  const item = props.document.elements.find((e) => e.id === id);
+  return (
+    !!item?.locked ||
+    (!!item?.groupId &&
+      props.document.elements.some(
+        (e) => e.groupId === item.groupId && e.locked,
+      ))
+  );
 }
 function appearance(item: DiagramElement): CellAttrs {
   if (item.kind === "line") return lineAppearance(item);
@@ -219,8 +228,11 @@ function synchronize() {
   if (!graph) return;
   syncing = true;
   try {
-    graph.resize(props.document.page.width, props.document.page.height);
-    const ids = new Set(props.document.elements.filter(e=>e.visible!==false).map((item) => item.id));
+    const ids = new Set(
+      props.document.elements
+        .filter((e) => e.visible !== false)
+        .map((item) => item.id),
+    );
     for (const node of graph.getNodes())
       if (!ids.has(node.id)) graph.removeNode(node);
     for (const [index, item] of props.document.elements.entries()) {
@@ -243,14 +255,20 @@ function synchronize() {
   }
 }
 
+function updateSurface() {
+  if (!graph) return;
+  graph.resize(props.area.width, props.area.height);
+  graph.translate(-props.area.x, -props.area.y);
+}
+watch(() => props.area, updateSurface);
 onMounted(() => {
   graph = new Graph({
     container: container.value!,
-    width: props.document.page.width,
-    height: props.document.page.height,
+    width: props.area.width,
+    height: props.area.height,
     grid: { size: 1, visible: false },
     background: { color: "transparent" },
-    translating: { restrict: true },
+    translating: { restrict: false },
     interacting: (view) => ({
       nodeMovable: !props.readonly && !isLocked(view.cell.id),
       magnetConnectable: false,
@@ -259,6 +277,7 @@ onMounted(() => {
     panning: false,
     mousewheel: false,
   });
+  updateSurface();
   graph.on("node:mousedown", ({ node, e }) => {
     if (props.readonly) {
       emit("select", node.id);
@@ -273,7 +292,8 @@ onMounted(() => {
     if (!props.readonly && e.button === 0 && !transform)
       marquee.value = { x, y, width: 0, height: 0 };
   });
-  window.addEventListener("mouseup", finish);
+  // X6 can stop mouseup bubbling at document; capture still completes marquee selection.
+  window.addEventListener("mouseup", finish, true);
   window.addEventListener("mousemove", pointerMove);
   graph.on("node:change:position", ({ node }) => {
     if (!syncing && !props.readonly && !isLocked(node.id)) {
@@ -297,7 +317,7 @@ watch(
 );
 onBeforeUnmount(() => {
   graph?.dispose();
-  window.removeEventListener("mouseup", finish);
+  window.removeEventListener("mouseup", finish, true);
   window.removeEventListener("mousemove", pointerMove);
 });
 const marquee = ref<{ x: number; y: number; width: number; height: number }>();
@@ -307,7 +327,8 @@ const activeItem = computed(() =>
 let transform:
   { kind: string; item: DiagramElement; x: number; y: number } | undefined;
 function startTransform(event: MouseEvent, kind: string) {
-  if (props.readonly || !activeItem.value || isLocked(activeItem.value.id)) return;
+  if (props.readonly || !activeItem.value || isLocked(activeItem.value.id))
+    return;
   event.preventDefault();
   event.stopPropagation();
   marquee.value = undefined;
@@ -326,39 +347,30 @@ function pointerMove(event: MouseEvent) {
     if (kind === "resize") {
       const dx = (event.clientX - x) / (props.viewScale || 1);
       const dy = (event.clientY - y) / (props.viewScale || 1);
-      const radians = (item.rotation || 0) * Math.PI / 180;
-      const cos = Math.cos(radians), sin = Math.sin(radians);
+      const radians = ((item.rotation || 0) * Math.PI) / 180;
+      const cos = Math.cos(radians),
+        sin = Math.sin(radians);
       const dw = Math.max(20, item.width + cos * dx + sin * dy) - item.width;
       const dh = Math.max(20, item.height - sin * dx + cos * dy) - item.height;
       // Resizing is in the node's axes. Move its center to keep the opposite corner fixed.
       const shiftX = ((cos - 1) * dw - sin * dh) / 2;
       const shiftY = (sin * dw + (cos - 1) * dh) / 2;
-      // Stop the whole gesture at the first document boundary instead of independently
-      // clamping x/y and making the anchored corner jump.
-      const margins = [
-        [item.x, shiftX],
-        [item.y, shiftY],
-        [props.document.page.width - item.x - item.width, -shiftX - dw],
-        [props.document.page.height - item.y - item.height, -shiftY - dh],
-      ];
-      let fraction = 1;
-      for (const [margin, change] of margins) {
-        if (change! < 0) fraction = Math.min(fraction, margin! / -change!);
-      }
-      fraction = Math.max(0, fraction);
       emit("transform", item.id, {
-        x: item.x + shiftX * fraction,
-        y: item.y + shiftY * fraction,
-        width: item.width + dw * fraction,
-        height: item.height + dh * fraction,
+        x: item.x + shiftX,
+        y: item.y + shiftY,
+        width: item.width + dw,
+        height: item.height + dh,
       });
-    }
-    else {
-      const rect = container.value!.getBoundingClientRect();
+    } else {
+      const rect = root.value!.getBoundingClientRect();
       const angle =
         (Math.atan2(
-          (event.clientY - rect.top)/(props.viewScale||1) - item.y - item.height / 2,
-          (event.clientX - rect.left)/(props.viewScale||1) - item.x - item.width / 2,
+          (event.clientY - rect.top) / (props.viewScale || 1) -
+            item.y -
+            item.height / 2,
+          (event.clientX - rect.left) / (props.viewScale || 1) -
+            item.x -
+            item.width / 2,
         ) *
           180) /
           Math.PI +
@@ -367,9 +379,11 @@ function pointerMove(event: MouseEvent) {
     }
   }
   if (marquee.value) {
-    const rect = container.value!.getBoundingClientRect();
-    marquee.value.width = (event.clientX - rect.left)/(props.viewScale||1) - marquee.value.x;
-    marquee.value.height = (event.clientY - rect.top)/(props.viewScale||1) - marquee.value.y;
+    const rect = root.value!.getBoundingClientRect();
+    marquee.value.width =
+      (event.clientX - rect.left) / (props.viewScale || 1) - marquee.value.x;
+    marquee.value.height =
+      (event.clientY - rect.top) / (props.viewScale || 1) - marquee.value.y;
   }
 }
 function finish() {
@@ -399,6 +413,9 @@ function finish() {
 
 <template>
   <div
+    ref="root"
+    data-testid="canvas"
+    aria-label="组态画布"
     style="position: relative"
     :style="{
       width: document.page.width + 'px',
@@ -406,17 +423,39 @@ function finish() {
     }"
   >
     <PageBackground :document="document" />
-    <div v-if="showGrid" data-testid="canvas-grid" style="position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#9caebc 0.8px, transparent 0.8px);background-size:20px 20px"></div>
+    <div
+      v-if="showGrid"
+      data-testid="canvas-grid"
+      style="
+        position: absolute;
+        pointer-events: none;
+        background-image: radial-gradient(#9caebc 0.8px, transparent 0.8px);
+        background-size: 20px 20px;
+      "
+      :style="{
+        left: area.x + 'px',
+        top: area.y + 'px',
+        width: area.width + 'px',
+        height: area.height + 'px',
+        backgroundPosition: `${-area.x}px ${-area.y}px`,
+      }"
+    ></div>
     <div
       ref="container"
       class="diagram-canvas"
-      data-testid="canvas"
-      aria-label="组态画布"
+      :style="{
+        position: 'absolute',
+        left: area.x + 'px',
+        top: area.y + 'px',
+        width: area.width + 'px',
+        height: area.height + 'px',
+      }"
     ></div>
     <span
       v-for="item in document.elements.filter(
         (e) =>
-          e.visible !== false && evaluateRules({ color: e.color }, e.rules, samples, e.binding)
+          e.visible !== false &&
+          evaluateRules({ color: e.color }, e.rules, samples, e.binding)
             .abnormal,
       )"
       :key="`error-${item.id}`"
@@ -425,7 +464,7 @@ function finish() {
       :style="{
         position: 'absolute',
         left: item.x + 'px',
-        top: Math.max(0, item.y - 22) + 'px',
+        top: item.y - 22 + 'px',
         color: '#b91c1c',
         background: '#fff1f2',
         fontSize: '12px',
@@ -436,6 +475,8 @@ function finish() {
     <LineInteraction
       v-if="!readonly"
       :document="document"
+      :area="area"
+      :view-scale="viewScale || 1"
       :tool="drawingTool"
       :selected="activeItem"
       @draw="emit('draw', $event)"
@@ -456,7 +497,12 @@ function finish() {
       }"
     ></div>
     <div
-      v-if="activeItem && !readonly && activeItem.visible !== false && !isLocked(activeItem.id)"
+      v-if="
+        activeItem &&
+        !readonly &&
+        activeItem.visible !== false &&
+        !isLocked(activeItem.id)
+      "
       class="transform-outline"
       :style="{
         left: activeItem.x + 'px',

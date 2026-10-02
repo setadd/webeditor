@@ -76,7 +76,7 @@ test("工作区可跨越页面边缘双向平移，滚轮以鼠标位置缩放�
   expect(device.x + device.width).toBeLessThanOrEqual(v.x + v.width);
 });
 
-test("平移后四类组件均可拖入，边缘限制在页面内，拖到工作区外不新增", async ({
+test("平移后四类组件均可拖入，可跨过原点，拖到工作区外不新增", async ({
   page,
 }) => {
   await page.goto("/");
@@ -107,8 +107,8 @@ test("平移后四类组件均可拖入，边缘限制在页面内，拖到工�
   await page
     .getByRole("button", { name: "添加设备", exact: true })
     .dragTo(page.getByTestId("canvas"), { targetPosition: { x: 3, y: 4 } });
-  await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("0");
-  await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("0");
+  await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("-86");
+  await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("-48");
   await page
     .getByRole("button", { name: "添加设备", exact: true })
     .dragTo(page.getByTestId("page-title"));
@@ -116,7 +116,7 @@ test("平移后四类组件均可拖入，边缘限制在页面内，拖到工�
   await page
     .getByRole("button", { name: "添加设备", exact: true })
     .dragTo(view, { targetPosition: { x: 5, y: 5 } });
-  await expect(page.getByRole("button", { name: /选择图元/ })).toHaveCount(5);
+  await expect(page.getByRole("button", { name: /选择图元/ })).toHaveCount(6);
 });
 
 test("低缩放下触控板小幅滚轮输入可连续累积", async ({ page }) => {

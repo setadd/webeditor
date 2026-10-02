@@ -31,8 +31,8 @@ test("创建页面并编辑设备与文字，保存刷新后完整恢复", async
   await page.getByRole("button", { name: "新建页面", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("页面名称").fill("冷却水泵房");
-  await dialog.getByLabel("画布宽度").fill("1200");
-  await dialog.getByLabel("画布高度").fill("800");
+  await dialog.getByLabel("背景宽度").fill("1200");
+  await dialog.getByLabel("背景高度").fill("800");
   await dialog.getByRole("button", { name: "创建页面", exact: true }).click();
   await expect(page.getByTestId("page-title")).toHaveText("冷却水泵房");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
@@ -56,7 +56,7 @@ test("创建页面并编辑设备与文字，保存刷新后完整恢复", async
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.reload();
   await expect(page.getByTestId("page-title")).toHaveText("冷却水泵房");
-  await expect(page.getByTestId("page-size")).toHaveText("1200 × 800");
+  await expect(page.getByTestId("page-size")).toHaveText("无限画布");
   await expect(
     page.getByTestId("canvas").getByText("运行设备", { exact: true }),
   ).toBeVisible();
@@ -102,14 +102,14 @@ test("设备文字排布在设备卡片内", async ({ page }) => {
   expect(text.x + text.width).toBeLessThanOrEqual(canvas.x + 96 + 184);
 });
 
-test("拖动图元后位置与选择保持正确，最小画布中新图元不越界", async ({
+test("拖动图元后位置与选择保持正确，新图元不受背景尺寸限制", async ({
   page,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "新建页面", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("画布宽度").fill("400");
-  await dialog.getByLabel("画布高度").fill("300");
+  await dialog.getByLabel("背景宽度").fill("400");
+  await dialog.getByLabel("背景高度").fill("300");
   await dialog.getByRole("button", { name: "创建页面", exact: true }).click();
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
   const device = page
@@ -136,8 +136,8 @@ test("拖动图元后位置与选择保持正确，最小画布中新图元不�
   const y = Number(
     await page.getByLabel("Y 坐标", { exact: true }).inputValue(),
   );
-  expect(x).toBeLessThanOrEqual(160);
-  expect(y).toBeLessThanOrEqual(252);
+  expect(x).toBe(292);
+  expect(y).toBe(292);
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.reload();

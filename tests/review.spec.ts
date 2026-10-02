@@ -108,7 +108,7 @@ for (const scenario of [
     await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("200");
   });
 
-test("旋转缩放在最小尺寸和页面边缘停止且可保存", async ({ page }) => {
+test("旋转缩放保留最小尺寸并可越过原点保存", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
   await page.getByLabel("X 坐标", { exact: true }).fill("200");
@@ -134,9 +134,9 @@ test("旋转缩放在最小尺寸和页面边缘停止且可保存", async ({ pa
   await page.getByLabel("Y 坐标", { exact: true }).fill("5");
   await page.getByLabel("Y 坐标", { exact: true }).press("Tab");
   await drag(-100);
-  await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("0");
-  await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("0");
-  await expect(page.getByLabel("高度", { exact: true })).toHaveValue("122");
+  await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("-45");
+  await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("-45");
+  await expect(page.getByLabel("高度", { exact: true })).toHaveValue("212");
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
 });

@@ -90,26 +90,53 @@ export function useEditor() {
     }
   }
   function members(id: string) {
-    const item = document.value.elements.find(e => e.id === id);
-    return item?.groupId ? document.value.elements.filter(e => e.groupId === item.groupId) : item ? [item] : [];
+    const item = document.value.elements.find((e) => e.id === id);
+    return item?.groupId
+      ? document.value.elements.filter((e) => e.groupId === item.groupId)
+      : item
+        ? [item]
+        : [];
   }
-  function canEdit(id: string) { return members(id).every(e => !e.locked); }
+  function canEdit(id: string) {
+    return members(id).every((e) => !e.locked);
+  }
   function select(id: string | null, additive = false) {
-    if (!id) { selectedIds.value=[]; return; }
-    const ids = members(id).map(e => e.id);
-    selectedIds.value = additive ? selectedIds.value.includes(id) ? selectedIds.value.filter(x=>!ids.includes(x)) : [...new Set([...selectedIds.value,...ids])] : ids;
+    if (!id) {
+      selectedIds.value = [];
+      return;
+    }
+    const ids = members(id).map((e) => e.id);
+    selectedIds.value = additive
+      ? selectedIds.value.includes(id)
+        ? selectedIds.value.filter((x) => !ids.includes(x))
+        : [...new Set([...selectedIds.value, ...ids])]
+      : ids;
   }
   function move(id: string, x: number, y: number) {
-    const item = document.value.elements.find(e=>e.id===id);
-    if(!item || !canEdit(id))return;
-    const ids = new Set(selectedIds.value.includes(id) ? selectedIds.value.flatMap(id=>members(id).map(e=>e.id)) : members(id).map(e=>e.id));
-    const items = document.value.elements.filter(e=>ids.has(e.id)&&canEdit(e.id));
-    let dx=x-item.x,dy=y-item.y;
-    dx=Math.max(-Math.min(...items.map(e=>e.x)),Math.min(dx,document.value.page.width-Math.max(...items.map(e=>e.x+e.width))));
-    dy=Math.max(-Math.min(...items.map(e=>e.y)),Math.min(dy,document.value.page.height-Math.max(...items.map(e=>e.y+e.height))));
-    commitMutation(()=>items.forEach(e=>{e.x+=dx;e.y+=dy;}));
+    const item = document.value.elements.find((e) => e.id === id);
+    if (!item || !canEdit(id)) return;
+    const ids = new Set(
+      selectedIds.value.includes(id)
+        ? selectedIds.value.flatMap((id) => members(id).map((e) => e.id))
+        : members(id).map((e) => e.id),
+    );
+    const items = document.value.elements.filter(
+      (e) => ids.has(e.id) && canEdit(e.id),
+    );
+    const dx = x - item.x,
+      dy = y - item.y;
+    commitMutation(() =>
+      items.forEach((e) => {
+        e.x += dx;
+        e.y += dy;
+      }),
+    );
   }
-  function selectMany(ids: string[]) { selectedIds.value = [...new Set(ids.flatMap(id=>members(id).map(e=>e.id)))]; }
+  function selectMany(ids: string[]) {
+    selectedIds.value = [
+      ...new Set(ids.flatMap((id) => members(id).map((e) => e.id))),
+    ];
+  }
   function selectAll() {
     selectedIds.value = document.value.elements.map((e) => e.id);
   }
@@ -146,8 +173,8 @@ export function useEditor() {
   function add(kind: ElementKind, center?: { x: number; y: number }) {
     const item = createElement(kind, document.value);
     if (center) {
-      item.x = Math.max(0, Math.min(document.value.page.width - item.width, Math.round(center.x - item.width / 2)));
-      item.y = Math.max(0, Math.min(document.value.page.height - item.height, Math.round(center.y - item.height / 2)));
+      item.x = Math.round(center.x - item.width / 2);
+      item.y = Math.round(center.y - item.height / 2);
     }
     commitMutation(() => document.value.elements.push(item));
     selectedId.value = item.id;
@@ -159,29 +186,27 @@ export function useEditor() {
     commitMutation(() => {
       const item = document.value.elements.find((e) => e.id === id);
       if (!item || !canEdit(id)) return;
-      if (item.groupId && (patch.x !== undefined || patch.y !== undefined) && patch.width === undefined && patch.height === undefined && patch.line === undefined) {
-        const peers=members(id);
-        const dx=Math.max(-Math.min(...peers.map(e=>e.x)),Math.min((patch.x??item.x)-item.x,document.value.page.width-Math.max(...peers.map(e=>e.x+e.width))));
-        const dy=Math.max(-Math.min(...peers.map(e=>e.y)),Math.min((patch.y??item.y)-item.y,document.value.page.height-Math.max(...peers.map(e=>e.y+e.height))));
-        peers.forEach(e=>{e.x+=dx;e.y+=dy;});return;
+      if (
+        item.groupId &&
+        (patch.x !== undefined || patch.y !== undefined) &&
+        patch.width === undefined &&
+        patch.height === undefined &&
+        patch.line === undefined
+      ) {
+        const peers = members(id);
+        const dx = (patch.x ?? item.x) - item.x;
+        const dy = (patch.y ?? item.y) - item.y;
+        peers.forEach((e) => {
+          e.x += dx;
+          e.y += dy;
+        });
+        return;
       }
       const next = { ...item, ...patch };
-      next.width = Math.max(
-        20,
-        Math.min(document.value.page.width, next.width),
-      );
-      next.height = Math.max(
-        20,
-        Math.min(document.value.page.height, next.height),
-      );
-      next.x = Math.max(
-        0,
-        Math.min(document.value.page.width - next.width, Math.round(next.x)),
-      );
-      next.y = Math.max(
-        0,
-        Math.min(document.value.page.height - next.height, Math.round(next.y)),
-      );
+      next.width = Math.max(20, next.width);
+      next.height = Math.max(20, next.height);
+      next.x = Math.round(next.x);
+      next.y = Math.round(next.y);
       Object.assign(item, next);
     });
   }
@@ -200,14 +225,12 @@ export function useEditor() {
   }
   function paste() {
     if (!clipboard.length) return;
-    const left=Math.min(...clipboard.map(e=>e.x)),top=Math.min(...clipboard.map(e=>e.y));
-    const right=Math.max(...clipboard.map(e=>e.x+e.width)),bottom=Math.max(...clipboard.map(e=>e.y+e.height));
-    if(right-left>document.value.page.width || bottom-top>document.value.page.height){error.value="无法粘贴：所选图元整体尺寸超出当前页面，请扩大画布或减少选择。";return;}
-    const dx=Math.max(-left,Math.min(24,document.value.page.width-right));
-    const dy=Math.max(-top,Math.min(24,document.value.page.height-bottom));
-    error.value="";
-    const groups = new Map<string,string>();
-    for (const item of clipboard) if(item.groupId) groups.set(item.groupId,crypto.randomUUID());
+    const dx = 24,
+      dy = 24;
+    error.value = "";
+    const groups = new Map<string, string>();
+    for (const item of clipboard)
+      if (item.groupId) groups.set(item.groupId, crypto.randomUUID());
     const items = clipboard.map((e) => ({
       ...clone(e),
       id: crypto.randomUUID(),

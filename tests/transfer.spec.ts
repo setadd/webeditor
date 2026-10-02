@@ -106,7 +106,7 @@ test("损坏备份、未知点位和无效图片均原子拒绝，取消替换�
         },
       ],
     },
-    { ...backup, elements: [{ ...backup.elements[0], x: -20 }] },
+    { ...backup, elements: [{ ...backup.elements[0], x: null }] },
     {
       ...backup,
       assets: {

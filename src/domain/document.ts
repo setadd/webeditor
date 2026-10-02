@@ -85,8 +85,8 @@ export function createElement(
     kind,
     name: `${title} ${index}`,
     text: kind === "text" ? "在右侧编辑显示文字" : `${title} ${index}`,
-    x: Math.min(96 + offset, doc.page.width - width),
-    y: Math.min(96 + offset, doc.page.height - height),
+    x: 96 + offset,
+    y: 96 + offset,
     width,
     height,
     color: kind === "device" ? "#0d9488" : "#334155",
@@ -184,11 +184,7 @@ export function parseDocument(
       !finite(item.width) ||
       !finite(item.height) ||
       item.width <= 0 ||
-      item.height <= 0 ||
-      item.x < 0 ||
-      item.y < 0 ||
-      item.x + item.width > value.page.width ||
-      item.y + item.height > value.page.height
+      item.height <= 0
     ) {
       return invalid();
     }
