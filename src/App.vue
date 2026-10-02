@@ -315,8 +315,12 @@ const inspectorTabs = [
   { id: "rules", name: "规则" },
   { id: "page", name: "页面" },
 ];
-function addComponent(kind: Parameters<typeof editor.add>[0]) {
-  editor.add(kind);
+function addComponent(
+  kind: Parameters<typeof editor.add>[0],
+  center?: { x: number; y: number },
+) {
+  drawingTool.value = null;
+  editor.add(kind, center);
   inspectorTab.value = "appearance";
   inspectorOpen.value = true;
 }
@@ -599,7 +603,12 @@ watch(selectedId, () => {
               >{{ doc.page.width }} × {{ doc.page.height }}</span
             >
           </div>
-          <CanvasViewport :document="doc" v-slot="view">
+          <CanvasViewport
+            :document="doc"
+            :accept-components="!busy && !loadBlocked"
+            @add-component="addComponent"
+            v-slot="view"
+          >
             <div
               class="canvas-sheet"
               :style="{

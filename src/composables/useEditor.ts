@@ -143,8 +143,12 @@ export function useEditor() {
     error.value = "";
     loadBlocked.value = false;
   }
-  function add(kind: ElementKind) {
+  function add(kind: ElementKind, center?: { x: number; y: number }) {
     const item = createElement(kind, document.value);
+    if (center) {
+      item.x = Math.max(0, Math.min(document.value.page.width - item.width, Math.round(center.x - item.width / 2)));
+      item.y = Math.max(0, Math.min(document.value.page.height - item.height, Math.round(center.y - item.height / 2)));
+    }
     commitMutation(() => document.value.elements.push(item));
     selectedId.value = item.id;
   }

@@ -1,11 +1,111 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import type { DiagramDocument } from "../domain/document";
-const props = defineProps<{ document: DiagramDocument }>();
+import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { componentMime, draggedComponent } from "./componentDrag";
+import type { ElementKind, DiagramDocument } from "../domain/document";
+const props = defineProps<{
+  document: DiagramDocument;
+  acceptComponents?: boolean;
+}>();
+const emit = defineEmits<{
+  addComponent: [kind: ElementKind, center: { x: number; y: number }];
+}>();
+const stage = ref<HTMLElement>();
+function dropPoint(event: DragEvent) {
+  if (!stage.value) return;
+  const rect = stage.value.getBoundingClientRect();
+  const x = (event.clientX - rect.left) / scale.value;
+  const y = (event.clientY - rect.top) / scale.value;
+  if (
+    x < 0 ||
+    y < 0 ||
+    x > props.document.page.width ||
+    y > props.document.page.height
+  )
+    return;
+  return { x, y };
+}
+function dragOver(event: DragEvent) {
+  if (
+    !props.acceptComponents ||
+    !event.dataTransfer?.types.includes(componentMime)
+  )
+    return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = dropPoint(event) ? "copy" : "none";
+}
+function drop(event: DragEvent) {
+  if (!props.acceptComponents) return;
+  const kind = draggedComponent(event);
+  if (!kind) return;
+  event.preventDefault();
+  const point = dropPoint(event);
+  if (point) emit("addComponent", kind, point);
+}
 const scale = ref(1),
   grid = ref(false),
   pan = ref(false),
   scroll = ref<HTMLElement>();
+const camera = ref({ x: 24, y: 24 });
+const spaceHeld = ref(false);
+const panning = computed(() => pan.value || spaceHeld.value);
+function zoom(value: number, anchor?: { x: number; y: number }) {
+  if (!scroll.value) return;
+  const next = Math.max(0.1, Math.min(4, Math.round(value * 100) / 100));
+  const at = anchor || {
+    x: scroll.value.clientWidth / 2,
+    y: scroll.value.clientHeight / 2,
+  };
+  const ratio = next / scale.value;
+  camera.value = {
+    x: at.x - (at.x - camera.value.x) * ratio,
+    y: at.y - (at.y - camera.value.y) * ratio,
+  };
+  scale.value = next;
+}
+function wheel(event: WheelEvent) {
+  if (drag || event.buttons || !scroll.value) return;
+  const rect = scroll.value.getBoundingClientRect();
+  zoom(scale.value * Math.exp(-event.deltaY * 0.0015), {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  });
+}
+function keydown(event: KeyboardEvent) {
+  if (event.code !== "Space" || event.ctrlKey || event.metaKey || event.altKey)
+    return;
+  if (
+    (event.target as HTMLElement)?.closest(
+      "input,textarea,select,[contenteditable=true],[role=dialog],button",
+    )
+  )
+    return;
+  event.preventDefault();
+  spaceHeld.value = true;
+}
+function keyup(event: KeyboardEvent) {
+  if (event.code === "Space") spaceHeld.value = false;
+}
+function resetKeys() {
+  spaceHeld.value = false;
+  drag = null;
+}
+onMounted(() => {
+  window.addEventListener("keydown", keydown);
+  window.addEventListener("keyup", keyup);
+  window.addEventListener("blur", resetKeys);
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", keydown);
+  window.removeEventListener("keyup", keyup);
+  window.removeEventListener("blur", resetKeys);
+});
+watch(
+  () => props.document.page.id,
+  () => {
+    camera.value = { x: 24, y: 24 };
+    scale.value = 1;
+  },
+);
 const options = computed(() =>
   [...new Set([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, scale.value])].sort(
     (a, b) => a - b,
@@ -58,19 +158,32 @@ function fit() {
       ) / 100,
     ),
   );
-  scroll.value.scrollTo(0, 0);
+  camera.value = {
+    x:
+      (scroll.value.clientWidth -
+        (bounds.value.right - bounds.value.left) * scale.value) /
+        2 -
+      bounds.value.left * scale.value,
+    y:
+      (scroll.value.clientHeight -
+        (bounds.value.bottom - bounds.value.top) * scale.value) /
+        2 -
+      bounds.value.top * scale.value,
+  };
 }
 let drag: { x: number; y: number; left: number; top: number } | null = null;
 function start(e: PointerEvent) {
-  if (!pan.value && e.button !== 1) return;
+  const outsidePage = !stage.value?.contains(e.target as Node);
+  if (e.button !== 1 && !(e.button === 0 && (panning.value || outsidePage)))
+    return;
   if ((e.target as HTMLElement).closest("button,input,select")) return;
   e.preventDefault();
   e.stopImmediatePropagation();
   drag = {
     x: e.clientX,
     y: e.clientY,
-    left: scroll.value!.scrollLeft,
-    top: scroll.value!.scrollTop,
+    left: camera.value.x,
+    top: camera.value.y,
   };
   scroll.value!.setPointerCapture(e.pointerId);
 }
@@ -78,8 +191,10 @@ function move(e: PointerEvent) {
   if (!drag) return;
   e.preventDefault();
   e.stopImmediatePropagation();
-  scroll.value!.scrollLeft = drag.left - e.clientX + drag.x;
-  scroll.value!.scrollTop = drag.top - e.clientY + drag.y;
+  camera.value = {
+    x: drag.left + e.clientX - drag.x,
+    y: drag.top + e.clientY - drag.y,
+  };
 }
 function end(e: PointerEvent) {
   if (!drag) return;
@@ -94,14 +209,18 @@ function end(e: PointerEvent) {
     <div class="view-tools" role="toolbar" aria-label="画布视图">
       <label
         >缩放
-        <select aria-label="画布缩放" v-model.number="scale">
+        <select
+          aria-label="画布缩放"
+          :value="scale"
+          @change="zoom(Number(($event.target as HTMLSelectElement).value))"
+        >
           <option v-for="value in options" :key="value" :value="value">
             {{ Math.round(value * 100) }}%
           </option>
         </select></label
       >
       <el-button size="small" @click="fit">适应内容</el-button
-      ><el-button size="small" aria-label="恢复100%" @click="scale = 1"
+      ><el-button size="small" aria-label="恢复100%" @click="zoom(1)"
         >100%</el-button
       >
       <el-button
@@ -115,44 +234,39 @@ function end(e: PointerEvent) {
         grid ? "隐藏网格" : "显示网格"
       }}</el-button>
       <span class="view-hint">{{
-        pan ? "拖动画面平移" : "中键拖动可平移"
+        panning ? "拖动画面平移" : "滚轮缩放 · 空格 / 中键平移"
       }}</span>
     </div>
     <div
       ref="scroll"
       class="view-scroll"
       data-testid="view-scroll"
-      :class="{ panning: pan }"
+      title="滚轮缩放；空格或中键拖动平移；外围空白处可直接拖动"
+      @dragover="dragOver"
+      @drop="drop"
+      :class="{ panning }"
+      :style="{
+        backgroundPosition: `${camera.x}px ${camera.y}px`,
+        backgroundSize: `${16 * scale}px ${16 * scale}px`,
+      }"
+      @wheel.prevent="wheel"
       @pointerdown.capture="start"
       @pointermove.capture="move"
       @pointerup.capture="end"
       @pointercancel="end"
     >
       <div
-        class="view-extent"
+        class="view-stage"
+        ref="stage"
         :style="{
-          width:
-            (Math.max(document.page.width, bounds.right) - bounds.left) *
-              scale +
-            'px',
-          height:
-            (Math.max(document.page.height, bounds.bottom) - bounds.top) *
-              scale +
-            'px',
+          left: camera.x + 'px',
+          top: camera.y + 'px',
+          transform: `scale(${scale})`,
+          width: document.page.width + 'px',
+          height: document.page.height + 'px',
         }"
       >
-        <div
-          class="view-stage"
-          :style="{
-            left: -bounds.left * scale + 'px',
-            top: -bounds.top * scale + 'px',
-            transform: `scale(${scale})`,
-            width: document.page.width + 'px',
-            height: document.page.height + 'px',
-          }"
-        >
-          <slot :scale="scale" :grid="grid" />
-        </div>
+        <slot :scale="scale" :grid="grid" />
       </div>
     </div>
   </div>
@@ -186,15 +300,11 @@ function end(e: PointerEvent) {
 .view-scroll {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  background: #eef2f5;
-  padding: 24px;
-  touch-action: none;
-}
-.view-extent {
   position: relative;
-  flex: none;
-  margin-bottom: 24px;
+  overflow: hidden;
+  background: #eef2f5;
+  padding: 0;
+  touch-action: none;
 }
 .view-stage {
   position: absolute;

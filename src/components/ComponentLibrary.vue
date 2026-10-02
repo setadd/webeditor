@@ -8,8 +8,17 @@ import {
   Search,
   Plus,
 } from "@element-plus/icons-vue";
+import { componentMime } from "./componentDrag";
 import type { ElementKind } from "../domain/document";
-defineProps<{ disabled?: boolean }>();
+const props = defineProps<{ disabled?: boolean }>();
+function startDrag(event: DragEvent, kind: ElementKind) {
+  if (props.disabled || !event.dataTransfer) {
+    event.preventDefault();
+    return;
+  }
+  event.dataTransfer.setData(componentMime, kind);
+  event.dataTransfer.effectAllowed = "copy";
+}
 const emit = defineEmits<{ add: [kind: ElementKind] }>();
 const category = ref("all"),
   query = ref("");
@@ -93,6 +102,8 @@ const filtered = computed(() =>
         class="component-tile"
         :aria-label="'添加' + item.name"
         :disabled="disabled"
+        :draggable="!disabled"
+        @dragstart="startDrag($event, item.kind)"
         @click="emit('add', item.kind)"
       >
         <div class="component-art">
@@ -127,7 +138,7 @@ const filtered = computed(() =>
         ><small class="tile-description">{{ item.description }}</small>
       </button>
       <p v-if="!filtered.length" class="library-empty">没有找到组件</p>
-      <p class="library-instruction">点击添加，再拖动到目标位置</p>
+      <p class="library-instruction">拖入画布放置，也可点击添加</p>
     </div>
   </div>
 </template>

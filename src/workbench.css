@@ -561,10 +561,7 @@
   background-color: #191e25;
   background-image: radial-gradient(#465465 0.8px, transparent 0.8px);
   background-size: 16px 16px;
-  padding: 28px;
-}
-.workbench .canvas-workspace .view-extent {
-  margin: 0 auto 28px;
+  padding: 0;
 }
 .workbench .canvas-workspace .view-stage {
   box-shadow:
