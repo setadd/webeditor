@@ -1,3 +1,4 @@
+import { contextAction } from "./helpers/contextAction";
 import { test, expect } from "@playwright/test";
 test("视图缩放网格平移不改文档，缩放后拖动和绘线坐标正确", async ({ page }) => {
   await page.goto("/");
@@ -105,7 +106,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   await page
     .getByRole("button", { name: "选择图元 供水管线", exact: true })
     .click({ modifiers: ["Control"] });
-  await page.getByRole("button", { name: "组合", exact: true }).click();
+  await contextAction(page, "组合");
   await page.getByLabel("X 坐标", { exact: true }).fill("255");
   await page.getByLabel("X 坐标", { exact: true }).press("Tab");
   await page

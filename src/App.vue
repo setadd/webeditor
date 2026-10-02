@@ -533,11 +533,6 @@ watch(selectedId, () => {
             :selected-ids="selectedIds"
             @select="editor.select"
             @toggle="layers.toggle"
-            @order="layers.order"
-            @group="layers.group"
-            @ungroup="layers.ungroup"
-            @align="layers.align"
-            @distribute="layers.distribute"
             @context="openContextMenu"
           />
         </aside>

@@ -446,30 +446,6 @@
   font-size: 12px;
   flex-shrink: 0;
 }
-.workbench .layer-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 8px -7px -7px;
-  padding: 11px 8px;
-  border-top: 1px solid var(--wb-border);
-  background: #22272e;
-}
-.workbench .layer-tools button {
-  border: 1px solid #414c59;
-  background: #2c333d;
-  color: #abbace;
-  border-radius: 4px;
-  padding: 5px 7px;
-  font-size: 11px;
-}
-.workbench .layer-tools button:hover {
-  border-color: #69bf9f;
-  color: #92dec3;
-}
-.workbench .layer-tools button:disabled {
-  opacity: 0.45;
-}
 .workbench .canvas-workspace {
   min-height: 0;
   min-width: 0;

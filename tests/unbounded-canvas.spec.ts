@@ -1,3 +1,4 @@
+import { contextAction } from "./helpers/contextAction";
 import { test, expect } from "@playwright/test";
 
 test("适应内容可同时显示相距四万像素的图元", async ({ page }) => {
@@ -134,7 +135,7 @@ test("远处曲线控制点、框选组合与复制不受背景范围限制", as
   await page.mouse.move(origin.x + 50400, origin.y - 59830, { steps: 6 });
   await page.mouse.up();
   await expect(page.getByText("已选 2 项", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "组合", exact: true }).click();
+  await contextAction(page, "组合");
   await page.getByRole("button", { name: "重复", exact: true }).click();
   await expect(page.getByRole("button", { name: /选择图元/ })).toHaveCount(4);
   await page.getByRole("button", { name: "撤销", exact: true }).click();
@@ -144,7 +145,7 @@ test("远处曲线控制点、框选组合与复制不受背景范围限制", as
     .click();
   await page.getByLabel("X 坐标", { exact: true }).fill("-50000");
   await page.getByLabel("X 坐标", { exact: true }).press("Tab");
-  await page.getByRole("button", { name: "取消组合", exact: true }).click();
+  await contextAction(page, "取消组合");
   await page
     .getByRole("button", { name: "选择图元 曲线", exact: true })
     .click();

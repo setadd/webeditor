@@ -14,11 +14,6 @@ defineProps<{ document: DiagramDocument; selectedIds: string[] }>();
 defineEmits<{
   select: [id: string, additive: boolean];
   toggle: [id: string, field: "locked" | "visible"];
-  order: [direction: string];
-  group: [];
-  ungroup: [];
-  align: [direction: string];
-  distribute: [axis: "x" | "y"];
   context: [event: MouseEvent, id: string];
 }>();
 </script>
@@ -70,38 +65,6 @@ defineEmits<{
           /></el-icon>
         </button>
       </div>
-    </div>
-    <div class="layer-tools">
-      <button
-        v-for="(name, key) in {
-          top: '置顶',
-          bottom: '置底',
-          up: '上移一层',
-          down: '下移一层',
-        }"
-        :key="key"
-        @click="$emit('order', key)"
-      >
-        {{ name }}
-      </button>
-      <button @click="$emit('group')">组合</button
-      ><button @click="$emit('ungroup')">取消组合</button>
-      <button
-        v-for="(name, key) in {
-          left: '左对齐',
-          right: '右对齐',
-          top: '顶对齐',
-          bottom: '底对齐',
-          centerX: '水平居中',
-          centerY: '垂直居中',
-        }"
-        :key="key"
-        @click="$emit('align', key)"
-      >
-        {{ name }}
-      </button>
-      <button @click="$emit('distribute', 'x')">水平等距</button
-      ><button @click="$emit('distribute', 'y')">垂直等距</button>
     </div>
   </div>
 </template>
