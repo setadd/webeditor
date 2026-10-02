@@ -14,6 +14,7 @@ test("完整项目备份在隔离存储中恢复背景和多页面且不自动�
     c.getContext("2d")!.fillRect(0, 0, 4, 4);
     return c.toDataURL();
   });
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await page
     .getByLabel("上传背景图", { exact: true })
     .setInputFiles({
@@ -26,6 +27,7 @@ test("完整项目备份在隔离存储中恢复背景和多页面且不自动�
   await page.getByRole("button", { name: "创建页面", exact: true }).click();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "导出项目", exact: true }).click();
   const download = await downloadPromise;
   const backup = await readFile((await download.path())!);
@@ -65,6 +67,7 @@ test("完整项目备份在隔离存储中恢复背景和多页面且不自动�
     "background-image",
     /data:image\/png;base64/,
   );
+  await restored.getByRole("button", { name: "项目菜单", exact: true }).click();
   await restored
     .getByRole("button", { name: "打开发布版本", exact: true })
     .click();
@@ -80,6 +83,7 @@ test("损坏备份、未知点位和无效图片均原子拒绝，取消替换�
   const id = await page.getByLabel("图元标识", { exact: true }).inputValue();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   const dp = page.waitForEvent("download");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "导出项目", exact: true }).click();
   const backup = JSON.parse(await readFile((await (await dp).path())!, "utf8"));
   const cases = [
@@ -178,6 +182,7 @@ test("写入失败仍可备份，导入不改变已保存草稿和已发布快�
     page.getByRole("alert").filter({ hasText: "保存失败" }),
   ).toBeVisible();
   const dp = page.waitForEvent("download");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "导出项目", exact: true }).click();
   const backup = await readFile((await (await dp).path())!);
   expect(JSON.parse(backup.toString()).elements[0].text).toBe("需要备份的修改");
@@ -204,6 +209,7 @@ test("写入失败仍可备份，导入不改变已保存草稿和已发布快�
   await expect(page.getByLabel("显示文字", { exact: true })).toHaveValue(
     "需要备份的修改",
   );
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(
     page.getByTestId("runtime").getByText("有效原稿", { exact: true }),

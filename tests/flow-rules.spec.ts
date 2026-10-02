@@ -15,6 +15,7 @@ test("负流量规则改变真实流向，停机优先级、异常恢复与基�
     await page.mouse.click(b.x + x, b.y + y);
   await page.getByRole("button", { name: "完成线条", exact: true }).click();
   await page.getByLabel("启用流动", { exact: true }).check();
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByRole("button", { name: "添加显示规则", exact: true }).click();
   await page.getByLabel("规则1条件1点位").selectOption("flow");
   await page.getByLabel("规则1条件1比较").selectOption("lt");
@@ -25,13 +26,16 @@ test("负流量规则改变真实流向，停机优先级、异常恢复与基�
   await page.getByLabel("规则1流动速度").fill("2");
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   const flow = page.locator("[data-flow-path]");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟流量", { exact: true }).fill("-5");
   await expect(flow).toHaveCSS("animation-direction", "reverse");
   await expect(flow).toHaveCSS("animation-duration", "0.5s");
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
   await expect(page.getByLabel("流动方向", { exact: true })).toHaveValue(
     "forward",
   );
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟流量", { exact: true }).fill("5");
   await expect(flow).toHaveCSS("animation-direction", "normal");
   await expect(flow).toHaveCSS("animation-duration", "1s");
@@ -41,6 +45,7 @@ test("负流量规则改变真实流向，停机优先级、异常恢复与基�
   await page.getByLabel("模拟流量", { exact: true }).fill("-3");
   await page.getByLabel("流量可用", { exact: true }).check();
   await expect(flow).toHaveCSS("animation-direction", "reverse");
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByRole("button", { name: "添加显示规则", exact: true }).click();
   await page.getByLabel("规则2条件1点位").selectOption("running");
   await page.getByLabel("规则2条件1比较").selectOption("eq");
@@ -48,12 +53,14 @@ test("负流量规则改变真实流向，停机优先级、异常恢复与基�
   await page.getByLabel("规则2颜色").fill("#ff0000");
   await page.getByLabel("规则2配置流动").check();
   await page.getByLabel("规则2流动方向").selectOption("stopped");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("0");
   await expect(flow).toHaveCSS("animation-direction", "reverse");
   await expect(page.locator("[data-line-path]")).toHaveAttribute(
     "stroke",
     "#ff0000",
   );
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByRole("button", { name: "上移规则2", exact: true }).click();
   await expect(flow).toHaveCSS("animation-name", "none");
   await page.getByRole("button", { name: "撤销", exact: true }).click();
@@ -63,6 +70,7 @@ test("负流量规则改变真实流向，停机优先级、异常恢复与基�
   await page
     .getByRole("button", { name: "选择图元 曲线", exact: true })
     .click();
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await expect(page.getByLabel("规则1流动方向")).toHaveValue("reverse");
   await expect(page.getByLabel("规则2流动方向")).toHaveValue("stopped");
 });
@@ -102,6 +110,7 @@ test("三类线路按运行状态启停，发布快照保留规则且退出清�
     if (!b) throw Error();
     for (const [x, y] of points) await page.mouse.click(b.x + x, b.y + y);
     await page.getByRole("button", { name: "完成线条", exact: true }).click();
+    await page.getByRole("tab", { name: "规则", exact: true }).click();
     await page
       .getByRole("button", { name: "添加显示规则", exact: true })
       .click();
@@ -110,9 +119,11 @@ test("三类线路按运行状态启停，发布快照保留规则且退出清�
     await page.getByLabel("规则1条件1阈值").fill("1");
     await page.getByLabel("规则1配置流动").check();
   }
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("0");
   for (const flow of await page.locator("[data-flow-path]").all())
     await expect(flow).toHaveCSS("animation-name", "none");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("1");
   for (const flow of await page.locator("[data-flow-path]").all())
     await expect(flow).toHaveCSS("animation-name", "diagram-line-flow");
@@ -126,6 +137,7 @@ test("三类线路按运行状态启停，发布快照保留规则且退出清�
   ).not.toBe(offset);
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(page.locator("[data-flow-path]")).toHaveCount(3);
   await expect(flow).toHaveCSS("animation-name", "diagram-line-flow");

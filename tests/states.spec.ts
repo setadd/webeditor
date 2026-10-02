@@ -31,18 +31,22 @@ test("状态图片自动切换、异常回退和手动预览保留图元身份�
     mimeType: "image/png",
     buffer: Buffer.from(urls[1]!.split(",")[1]!, "base64"),
   });
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByLabel("规则1条件1点位").selectOption("running");
   await page.getByLabel("规则1条件1比较").selectOption("eq");
   await page.getByLabel("规则1条件1阈值").fill("1");
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
   await page.getByLabel("上传状态图片", { exact: true }).setInputFiles({
     name: "fault.png",
     mimeType: "image/png",
     buffer: Buffer.from(urls[2]!.split(",")[1]!, "base64"),
   });
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByLabel("规则2条件1点位").selectOption("fault");
   await page.getByLabel("规则2条件1比较").selectOption("eq");
   await page.getByLabel("规则2条件1阈值").fill("1");
   await page.getByRole("button", { name: "上移规则2", exact: true }).click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("1");
   await page.getByLabel("模拟故障状态", { exact: true }).fill("0");
   await expect(image).toHaveAttribute("href", urls[1]!);
@@ -56,6 +60,7 @@ test("状态图片自动切换、异常回退和手动预览保留图元身份�
   await page.getByLabel("故障状态可用", { exact: true }).check();
   await expect(image).toHaveAttribute("href", urls[2]!);
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
   await page
     .getByRole("button", { name: "预览图片 running.png", exact: true })
     .click();
@@ -65,6 +70,7 @@ test("状态图片自动切换、异常回退和手动预览保留图元身份�
   await expect(image).toHaveAttribute("href", urls[2]!);
   await expect(page.getByLabel("图元标识", { exact: true })).toHaveValue(id);
   await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("96");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("0");
   await page.getByLabel("模拟故障状态", { exact: true }).fill("0");
   await expect(image).toHaveAttribute("href", urls[0]!);
@@ -72,8 +78,11 @@ test("状态图片自动切换、异常回退和手动预览保留图元身份�
   await page
     .getByRole("button", { name: "选择图元 设备 1", exact: true })
     .click();
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await expect(page.getByLabel("规则1条件1点位")).toHaveValue("fault");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟运行状态", { exact: true }).fill("0");
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
   await expect(page.getByLabel("图元标识", { exact: true })).toHaveValue(id);
   await expect(image).toHaveAttribute("href", urls[0]!);
 });
@@ -115,6 +124,7 @@ test("图片编辑撤销、复制独立身份并发布图片快照", async ({ pa
     .getByRole("button", { name: "预览图片 base.png", exact: true })
     .click();
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(page.getByTestId("runtime").locator("image")).toHaveCount(2);
   await expect(

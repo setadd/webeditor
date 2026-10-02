@@ -53,6 +53,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   browser,
 }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "载入演示项目", exact: true }).click();
   await expect(page.getByTestId("page-title")).toHaveText(
     "冷却回路 · 实时监控",
@@ -61,6 +62,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   const image = page.getByTestId("canvas").locator("image");
   await expect(image).toHaveCount(1);
   const running = await image.getAttribute("href");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("模拟温度", { exact: true }).fill("81");
   await expect(
     page.getByTestId("canvas").getByText("81 °C", { exact: true }).last(),
@@ -126,6 +128,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   await page.reload();
   await expect(page.getByTestId("canvas").locator("image")).toHaveCount(1);
   const dl = page.waitForEvent("download");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "导出项目", exact: true }).click();
   const backup = await readFile((await (await dl).path())!);
   const context = await browser.newContext();
@@ -144,6 +147,7 @@ test("完整演示图片规则流动与复制组合保护，保存备份跨存�
   ).toBeVisible();
   await other.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(other.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await other.getByRole("button", { name: "项目菜单", exact: true }).click();
   await other
     .getByRole("button", { name: "打开发布版本", exact: true })
     .click();
@@ -175,6 +179,7 @@ test("跨页面粘贴整体适应边界，超大选择拒绝且切项目清空�
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "新建项目", exact: true }).click();
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
   await expect(
@@ -199,6 +204,7 @@ test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板",
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
   await expect(page.getByRole("alert").filter({hasText:"整体尺寸超出"})).toBeVisible();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "载入演示项目", exact: true }).click();
   await page
     .getByRole("button", { name: "选择图元 循环水泵 P-01", exact: true })
@@ -206,6 +212,7 @@ test("无法容纳的粘贴拒绝，带图片的新项目不保留旧剪贴板",
   await page.getByRole("button", { name: "复制", exact: true }).click();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "新建项目", exact: true }).click();
   await page.getByRole("button", { name: "粘贴", exact: true }).click();
   await expect(page.getByTestId("canvas").locator("image")).toHaveCount(0);

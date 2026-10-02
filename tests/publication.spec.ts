@@ -50,6 +50,7 @@ test("预览只读、发布快照独立于草稿并支持刷新和重新发布",
   await expect(page.getByTestId("save-state")).toHaveText("未保存");
   await page.getByLabel("显示文字", { exact: true }).fill("版本 B");
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(
     page.getByTestId("runtime").getByText("版本 A", { exact: true }),
@@ -64,6 +65,7 @@ test("预览只读、发布快照独立于草稿并支持刷新和重新发布",
   ).toBeVisible();
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(
     page.getByTestId("runtime").getByText("版本 B", { exact: true }),
@@ -77,6 +79,7 @@ test("新建项目保护未保存内容，发布失败保留原快照", async ({
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
   await page.getByLabel("显示文字", { exact: true }).fill("未发布修改");
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "新建项目", exact: true }).click();
   await page.getByRole("button", { name: "返回编辑", exact: true }).click();
   await expect(page.getByLabel("显示文字", { exact: true })).toHaveValue(
@@ -98,6 +101,7 @@ test("新建项目保护未保存内容，发布失败保留原快照", async ({
   await expect(
     page.getByRole("alert").filter({ hasText: "发布失败" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await expect(
     page.getByTestId("runtime").getByText("有效快照", { exact: true }),

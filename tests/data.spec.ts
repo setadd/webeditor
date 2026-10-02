@@ -4,6 +4,7 @@ test("混合组件绑定实时点位，模拟数据不修改草稿，保存后�
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加指标", exact: true }).click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page
     .getByLabel("绑定点位", { exact: true })
     .selectOption("temperature");
@@ -24,6 +25,7 @@ test("混合组件绑定实时点位，模拟数据不修改草稿，保存后�
   await page
     .getByRole("button", { name: "选择图元 指标 1", exact: true })
     .click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await expect(page.getByLabel("绑定点位", { exact: true })).toHaveValue(
     "temperature",
   );
@@ -36,11 +38,13 @@ test("设备和趋势图显示对应数据，历史范围可调整并随绑定�
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("绑定点位", { exact: true }).selectOption("running");
   await expect(
     page.getByTestId("canvas").getByText("1", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "添加趋势图", exact: true }).click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page
     .getByLabel("绑定点位", { exact: true })
     .selectOption("temperature");
@@ -57,6 +61,7 @@ test("设备和趋势图显示对应数据，历史范围可调整并随绑定�
   await page
     .getByRole("button", { name: "选择图元 趋势图 1", exact: true })
     .click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await expect(page.getByLabel("历史时间范围", { exact: true })).toHaveValue(
     "15",
   );

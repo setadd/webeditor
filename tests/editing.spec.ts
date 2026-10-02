@@ -82,6 +82,7 @@ test("框选追加选择、拖动手柄和未保存取消保护", async ({ page 
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await page.getByRole("button", { name: "全选", exact: true }).click();
   await page.getByRole("button", { name: "删除", exact: true }).click();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开本机", exact: true }).click();
   await page.getByRole("button", { name: "返回编辑", exact: true }).click();
   await expect(page.getByRole("button", { name: /选择图元/ })).toHaveCount(0);

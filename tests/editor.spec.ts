@@ -178,6 +178,7 @@ test("写入失败保留画布修改，重新打开仍是上次成功保存的�
   await expect(page.getByLabel("显示文字", { exact: true })).toHaveValue(
     "失败后仍要保留的修改",
   );
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开本机", exact: true }).click();
   await page.getByRole("button", { name: "继续", exact: true }).click();
   await expect(

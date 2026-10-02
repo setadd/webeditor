@@ -3,9 +3,11 @@ test("发布版本详情与项目页面跳转，运行筛选不修改草稿", as
   await page.goto("/");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();
   await page.getByLabel("图元名称", { exact: true }).fill("温度泵");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page
     .getByLabel("绑定点位", { exact: true })
     .selectOption("temperature");
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByLabel("点击动作", { exact: true }).selectOption("details");
   await page.getByRole("button", { name: "添加文字", exact: true }).click();
   await page.getByLabel("图元名称", { exact: true }).fill("导航入口");
@@ -18,6 +20,7 @@ test("发布版本详情与项目页面跳转，运行筛选不修改草稿", as
   await page
     .getByRole("button", { name: "选择图元 导航入口", exact: true })
     .click();
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByLabel("点击动作", { exact: true }).selectOption("navigate");
   await page
     .getByLabel("跳转目标页面", { exact: true })
@@ -26,6 +29,7 @@ test("发布版本详情与项目页面跳转，运行筛选不修改草稿", as
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await page
     .getByRole("button", { name: "查看图元 温度泵", exact: true })
@@ -57,18 +61,23 @@ test("规则异常状态筛选、历史范围与画布详情，退出后不影�
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加趋势图", exact: true }).click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page
     .getByLabel("绑定点位", { exact: true })
     .selectOption("temperature");
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
   await page.getByLabel("图元名称", { exact: true }).fill("温度趋势");
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByLabel("点击动作", { exact: true }).selectOption("details");
   await page.getByRole("button", { name: "添加文字", exact: true }).click();
   await page.getByLabel("图元名称", { exact: true }).fill("故障指示");
   await page.getByLabel("显示文字", { exact: true }).fill("故障指示文字");
   await page.getByLabel("X 坐标", { exact: true }).fill("500");
   await page.getByLabel("X 坐标", { exact: true }).press("Tab");
+  await page.getByRole("tab", { name: "规则", exact: true }).click();
   await page.getByRole("button", { name: "添加显示规则", exact: true }).click();
   await page.getByLabel("规则1条件1点位").selectOption("fault");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await page.getByLabel("故障状态可用", { exact: true }).uncheck();
   await page.getByRole("button", { name: "保存到本机", exact: true }).click();
   await expect(page.getByTestId("save-state")).toHaveText("已保存");
@@ -95,6 +104,7 @@ test("规则异常状态筛选、历史范围与画布详情，退出后不影�
   await page
     .getByRole("button", { name: "选择图元 温度趋势", exact: true })
     .click();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
   await expect(page.getByLabel("历史时间范围", { exact: true })).toHaveValue(
     "60",
   );

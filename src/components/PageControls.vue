@@ -9,17 +9,7 @@ defineProps<{
 defineEmits<{ switch: [id: string]; rename: [name: string] }>();
 </script>
 <template>
-  <div
-    class="page-controls"
-    style="
-      display: flex;
-      gap: 12px;
-      padding: 10px 24px;
-      background: white;
-      border-bottom: 1px solid #e2e8f0;
-      align-items: center;
-    "
-  >
+  <div class="page-controls">
     <label
       >页面
       <select

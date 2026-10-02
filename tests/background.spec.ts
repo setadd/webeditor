@@ -7,6 +7,7 @@ test("背景颜色、嵌入图片、四种铺放与透明度保存恢复且不�
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await expect(page.getByLabel("上传背景图", { exact: true })).toBeEnabled();
   await page.getByLabel("背景颜色", { exact: true }).fill("#ddeeff");
   await page
@@ -20,10 +21,12 @@ test("背景颜色、嵌入图片、四种铺放与透明度保存恢复且不�
     ["tile", "auto", "repeat"],
     ["contain", "contain", "no-repeat"],
   ]) {
+    await page.getByRole("tab", { name: "页面", exact: true }).click();
     await page.getByLabel("背景图片模式", { exact: true }).selectOption(mode);
     await expect(image).toHaveCSS("background-size", size);
     await expect(image).toHaveCSS("background-repeat", repeat);
   }
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await page.getByLabel("背景图片透明度", { exact: true }).fill("40");
   await expect(image).toHaveCSS("opacity", "0.4");
   await page.getByRole("button", { name: "撤销", exact: true }).click();
@@ -40,6 +43,7 @@ test("背景颜色、嵌入图片、四种铺放与透明度保存恢复且不�
     "rgb(221, 238, 255)",
   );
   await expect(image).toHaveCSS("background-image", /data:image\/png;base64/);
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await page.getByRole("button", { name: "移除背景图", exact: true }).click();
   await expect(image).toHaveCSS("background-image", "none");
   await page.getByRole("button", { name: "撤销", exact: true }).click();
@@ -49,6 +53,7 @@ test("替换图片可撤销，拒绝不支持/损坏/超限图片并保留有效
   page,
 }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await expect(page.getByLabel("上传背景图", { exact: true })).toBeEnabled();
   const input = page.getByLabel("上传背景图", { exact: true });
   await input.setInputFiles({
@@ -97,6 +102,7 @@ test("替换图片可撤销，拒绝不支持/损坏/超限图片并保留有效
 });
 test("读取和存储失败时保留画面及上次有效保存", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await expect(page.getByLabel("上传背景图", { exact: true })).toBeEnabled();
   const input = page.getByLabel("上传背景图", { exact: true });
   await input.setInputFiles({
@@ -146,6 +152,7 @@ test("读取和存储失败时保留画面及上次有效保存", async ({ page 
 });
 test("不同页面背景随发布快照保存并按逻辑画布尺寸显示", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("tab", { name: "页面", exact: true }).click();
   await expect(page.getByLabel("上传背景图", { exact: true })).toBeEnabled();
   await page
     .getByLabel("上传背景图", { exact: true })
@@ -159,6 +166,7 @@ test("不同页面背景随发布快照保存并按逻辑画布尺寸显示", as
   await page.getByRole("button", { name: "创建页面", exact: true }).click();
   await page.getByRole("button", { name: "发布到本机", exact: true }).click();
   await expect(page.getByText("本机发布成功", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "项目菜单", exact: true }).click();
   await page.getByRole("button", { name: "打开发布版本", exact: true }).click();
   await page
     .getByLabel("切换页面", { exact: true })
