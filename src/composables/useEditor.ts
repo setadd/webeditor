@@ -1,4 +1,5 @@
 import { computed, ref } from "vue";
+import { visualBounds } from "../domain/visualBounds";
 import {
   createDocument,
   createElement,
@@ -230,10 +231,7 @@ export function useEditor() {
   function pasteAt(center?: { x: number; y: number }) {
     if (!clipboard.value.length) return;
     const source = clipboard.value;
-    const left = Math.min(...source.map((e) => e.x));
-    const top = Math.min(...source.map((e) => e.y));
-    const right = Math.max(...source.map((e) => e.x + e.width));
-    const bottom = Math.max(...source.map((e) => e.y + e.height));
+    const { left, top, right, bottom } = visualBounds(source)!;
     const dx = center ? center.x - (left + right) / 2 : 24;
     const dy = center ? center.y - (top + bottom) / 2 : 24;
     error.value = "";

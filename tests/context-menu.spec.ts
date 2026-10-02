@@ -1,5 +1,36 @@
 import { test, expect } from "@playwright/test";
 
+test("旋转多选按可见包围框中心粘贴", async ({ page }) => {
+  await page.goto("/");
+  for (const [x, width, rotation] of [
+    [0, 100, 90],
+    [200, 20, 0],
+  ]) {
+    await page.getByRole("button", { name: "添加设备", exact: true }).click();
+    for (const [label, value] of [
+      ["X 坐标", x],
+      ["Y 坐标", 0],
+      ["宽度", width],
+      ["高度", 20],
+      ["旋转角度", rotation],
+    ] as const) {
+      await page.getByLabel(label, { exact: true }).fill(String(value));
+      await page.getByLabel(label, { exact: true }).press("Tab");
+    }
+  }
+  await page.getByRole("button", { name: "全选", exact: true }).click();
+  await page
+    .getByRole("button", { name: "选择图元 设备 1", exact: true })
+    .click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "画布操作" });
+  await menu.getByRole("menuitem", { name: "复制", exact: true }).click();
+  const origin = (await page.getByTestId("canvas").boundingBox())!;
+  await page.mouse.click(origin.x + 450, origin.y + 350, { button: "right" });
+  await menu.getByRole("menuitem", { name: "粘贴", exact: true }).click();
+  await expect(page.getByLabel("X 坐标", { exact: true })).toHaveValue("320");
+  await expect(page.getByLabel("Y 坐标", { exact: true })).toHaveValue("340");
+});
+
 test("右键切换目标、保留多选，层级与锁定保护正确", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "添加设备", exact: true }).click();

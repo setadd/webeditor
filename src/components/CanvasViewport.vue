@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { visualBounds } from "../domain/visualBounds";
 import { componentMime, draggedComponent } from "./componentDrag";
 import type { ElementKind, DiagramDocument } from "../domain/document";
 const props = defineProps<{
@@ -131,37 +132,17 @@ const options = computed(() =>
     ]),
   ].sort((a, b) => a - b),
 );
-const bounds = computed(() => {
-  const points = props.document.elements
-    .filter((e) => e.visible !== false)
-    .flatMap((e) => {
-      const r = ((e.rotation || 0) * Math.PI) / 180,
-        cx = e.x + e.width / 2,
-        cy = e.y + e.height / 2;
-      return [
-        [-e.width / 2, -e.height / 2],
-        [e.width / 2, -e.height / 2],
-        [e.width / 2, e.height / 2],
-        [-e.width / 2, e.height / 2],
-      ].map(([x, y]) => ({
-        x: cx + x! * Math.cos(r) - y! * Math.sin(r),
-        y: cy + x! * Math.sin(r) + y! * Math.cos(r),
-      }));
-    });
-  return points.length
-    ? {
-        left: Math.min(...points.map((p) => p.x)),
-        top: Math.min(...points.map((p) => p.y)),
-        right: Math.max(...points.map((p) => p.x)),
-        bottom: Math.max(...points.map((p) => p.y)),
-      }
-    : {
-        left: 0,
-        top: 0,
-        right: props.document.page.width,
-        bottom: props.document.page.height,
-      };
-});
+const bounds = computed(
+  () =>
+    visualBounds(
+      props.document.elements.filter((e) => e.visible !== false),
+    ) || {
+      left: 0,
+      top: 0,
+      right: props.document.page.width,
+      bottom: props.document.page.height,
+    },
+);
 function fit() {
   if (!viewport.value) return;
   const w = bounds.value.right - bounds.value.left + 32,

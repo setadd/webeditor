@@ -100,20 +100,12 @@ export function useEditorContextMenu(
           },
           {
             label: items.some((e) => e.locked) ? "解锁" : "锁定",
-            run: () =>
-              editor.mutate(() => {
-                const locked = !items.some((e) => e.locked);
-                items.forEach((e) => (e.locked = locked));
-              }),
+            run: layers.toggleSelectedLock,
           },
           {
             label: items.every((e) => e.visible === false) ? "显示" : "隐藏",
             disabled: !editable,
-            run: () =>
-              editor.mutate(() => {
-                const visible = items.every((e) => e.visible === false);
-                items.forEach((e) => (e.visible = visible));
-              }),
+            run: layers.toggleSelectedVisibility,
           },
         ],
       );

@@ -46,6 +46,17 @@ export function useLayers(
       }
     });
   }
+  function toggleSelectedLock() {
+    const items = selected();
+    const locked = !items.some((e) => e.locked);
+    mutate(() => items.forEach((e) => (e.locked = locked)));
+  }
+  function toggleSelectedVisibility() {
+    if (!editable()) return;
+    const items = selected();
+    const visible = items.every((e) => e.visible === false);
+    mutate(() => items.forEach((e) => (e.visible = visible)));
+  }
   function group() {
     if (!editable() || selected().length < 2) return;
     mutate(() => {
@@ -97,5 +108,14 @@ export function useLayers(
       }
     });
   }
-  return { toggle, order, group, ungroup, align, distribute };
+  return {
+    toggle,
+    toggleSelectedLock,
+    toggleSelectedVisibility,
+    order,
+    group,
+    ungroup,
+    align,
+    distribute,
+  };
 }
