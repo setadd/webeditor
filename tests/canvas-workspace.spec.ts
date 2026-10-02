@@ -118,3 +118,16 @@ test("平移后四类组件均可拖入，边缘限制在页面内，拖到工�
     .dragTo(view, { targetPosition: { x: 5, y: 5 } });
   await expect(page.getByRole("button", { name: /选择图元/ })).toHaveCount(5);
 });
+
+test("低缩放下触控板小幅滚轮输入可连续累积", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("画布缩放", { exact: true }).selectOption("0.25");
+  const canvas = page.getByTestId("canvas");
+  const before = (await canvas.boundingBox())!.width;
+  const view = (await page.getByTestId("view-scroll").boundingBox())!;
+  await page.mouse.move(view.x + 80, view.y + 80);
+  for (let i = 0; i < 16; i++) await page.mouse.wheel(0, -5);
+  await expect
+    .poll(async () => (await canvas.boundingBox())!.width)
+    .toBeGreaterThan(before + 15);
+});

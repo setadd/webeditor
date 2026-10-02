@@ -2,7 +2,7 @@
 
 Status: ready-for-agent
 Blocked by: 01
-Execution: in-progress
+Execution: completed
 
 ## 用户请求与实现范围
 
@@ -27,3 +27,9 @@ Execution: in-progress
 ## Comments
 
 审查基准使用本次修改前版本 `931edc1`。不修改文档格式、页面大小限制、点位数据或发布语义。
+
+## 验证记录
+
+2026-10-02：`npm test -- --workers=4`，55 项全部通过；`npm run build` 与类型检查通过。构建保留原有大包体积提示。浏览器检查演示项目缩放、居中和工作区布局，页面背景及图元均正常渲染。
+
+审查修复后新增触控板小幅输入回归，连同工作区、完整流程与旋转缩放相关用例共 14 项通过。未重复全量执行；当前测试总数 56 项。代码规范与需求审查的意见均已修复并经原审查者复核，见 [审查记录](../review-infinite-workspace.md)。

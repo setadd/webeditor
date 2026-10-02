@@ -44,16 +44,16 @@ function drop(event: DragEvent) {
 const scale = ref(1),
   grid = ref(false),
   pan = ref(false),
-  scroll = ref<HTMLElement>();
+  viewport = ref<HTMLElement>();
 const camera = ref({ x: 24, y: 24 });
 const spaceHeld = ref(false);
 const panning = computed(() => pan.value || spaceHeld.value);
 function zoom(value: number, anchor?: { x: number; y: number }) {
-  if (!scroll.value) return;
-  const next = Math.max(0.1, Math.min(4, Math.round(value * 100) / 100));
+  if (!viewport.value) return;
+  const next = Math.max(0.1, Math.min(4, value));
   const at = anchor || {
-    x: scroll.value.clientWidth / 2,
-    y: scroll.value.clientHeight / 2,
+    x: viewport.value.clientWidth / 2,
+    y: viewport.value.clientHeight / 2,
   };
   const ratio = next / scale.value;
   camera.value = {
@@ -63,8 +63,8 @@ function zoom(value: number, anchor?: { x: number; y: number }) {
   scale.value = next;
 }
 function wheel(event: WheelEvent) {
-  if (drag || event.buttons || !scroll.value) return;
-  const rect = scroll.value.getBoundingClientRect();
+  if (drag || event.buttons || !viewport.value) return;
+  const rect = viewport.value.getBoundingClientRect();
   zoom(scale.value * Math.exp(-event.deltaY * 0.0015), {
     x: event.clientX - rect.left,
     y: event.clientY - rect.top,
@@ -107,9 +107,14 @@ watch(
   },
 );
 const options = computed(() =>
-  [...new Set([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, scale.value])].sort(
-    (a, b) => a - b,
-  ),
+  [
+    ...new Set([
+      ...[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].filter(
+        (value) => Math.round(value * 100) !== Math.round(scale.value * 100),
+      ),
+      scale.value,
+    ]),
+  ].sort((a, b) => a - b),
 );
 const bounds = computed(() => {
   const points = props.document.elements
@@ -143,7 +148,7 @@ const bounds = computed(() => {
       };
 });
 function fit() {
-  if (!scroll.value) return;
+  if (!viewport.value) return;
   const w = bounds.value.right - bounds.value.left + 32,
     h = bounds.value.bottom - bounds.value.top + 32;
   scale.value = Math.max(
@@ -152,26 +157,27 @@ function fit() {
       2,
       Math.floor(
         Math.min(
-          (scroll.value.clientWidth - 48) / w,
-          (scroll.value.clientHeight - 48) / h,
+          (viewport.value.clientWidth - 48) / w,
+          (viewport.value.clientHeight - 48) / h,
         ) * 100,
       ) / 100,
     ),
   );
   camera.value = {
     x:
-      (scroll.value.clientWidth -
+      (viewport.value.clientWidth -
         (bounds.value.right - bounds.value.left) * scale.value) /
         2 -
       bounds.value.left * scale.value,
     y:
-      (scroll.value.clientHeight -
+      (viewport.value.clientHeight -
         (bounds.value.bottom - bounds.value.top) * scale.value) /
         2 -
       bounds.value.top * scale.value,
   };
 }
-let drag: { x: number; y: number; left: number; top: number } | null = null;
+let drag: { x: number; y: number; cameraX: number; cameraY: number } | null =
+  null;
 function start(e: PointerEvent) {
   const outsidePage = !stage.value?.contains(e.target as Node);
   if (e.button !== 1 && !(e.button === 0 && (panning.value || outsidePage)))
@@ -182,26 +188,26 @@ function start(e: PointerEvent) {
   drag = {
     x: e.clientX,
     y: e.clientY,
-    left: camera.value.x,
-    top: camera.value.y,
+    cameraX: camera.value.x,
+    cameraY: camera.value.y,
   };
-  scroll.value!.setPointerCapture(e.pointerId);
+  viewport.value!.setPointerCapture(e.pointerId);
 }
 function move(e: PointerEvent) {
   if (!drag) return;
   e.preventDefault();
   e.stopImmediatePropagation();
   camera.value = {
-    x: drag.left + e.clientX - drag.x,
-    y: drag.top + e.clientY - drag.y,
+    x: drag.cameraX + e.clientX - drag.x,
+    y: drag.cameraY + e.clientY - drag.y,
   };
 }
 function end(e: PointerEvent) {
   if (!drag) return;
   drag = null;
   e.stopImmediatePropagation();
-  if (scroll.value?.hasPointerCapture(e.pointerId))
-    scroll.value.releasePointerCapture(e.pointerId);
+  if (viewport.value?.hasPointerCapture(e.pointerId))
+    viewport.value.releasePointerCapture(e.pointerId);
 }
 </script>
 <template>
@@ -238,7 +244,7 @@ function end(e: PointerEvent) {
       }}</span>
     </div>
     <div
-      ref="scroll"
+      ref="viewport"
       class="view-scroll"
       data-testid="view-scroll"
       title="滚轮缩放；空格或中键拖动平移；外围空白处可直接拖动"
