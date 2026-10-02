@@ -33,11 +33,33 @@ const emit = defineEmits<{
   gestureEnd: [];
   transform: [id: string, patch: Partial<DiagramElement>];
   move: [id: string, x: number, y: number];
+  context: [
+    event: MouseEvent,
+    id: string | null,
+    point: { x: number; y: number },
+  ];
 }>();
 const container = ref<HTMLDivElement>();
 const root = ref<HTMLDivElement>();
 let graph: Graph | undefined;
 let syncing = false;
+
+function context(event: MouseEvent) {
+  if (props.readonly) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const target = event.target as Element;
+  const id =
+    target.closest("[data-cell-id]")?.getAttribute("data-cell-id") ||
+    (target.closest(".path-handle,.transform-outline")
+      ? props.selectedId
+      : null);
+  const rect = root.value!.getBoundingClientRect();
+  emit("context", event, id, {
+    x: (event.clientX - rect.left) / (props.viewScale || 1),
+    y: (event.clientY - rect.top) / (props.viewScale || 1),
+  });
+}
 
 function isLocked(id: string) {
   const item = props.document.elements.find((e) => e.id === id);
@@ -279,6 +301,7 @@ onMounted(() => {
   });
   updateSurface();
   graph.on("node:mousedown", ({ node, e }) => {
+    if (e.button !== 0) return;
     if (props.readonly) {
       emit("select", node.id);
       return;
@@ -414,6 +437,7 @@ function finish() {
 <template>
   <div
     ref="root"
+    @contextmenu.capture="context"
     data-testid="canvas"
     aria-label="组态画布"
     style="position: relative"

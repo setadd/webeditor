@@ -27,6 +27,8 @@ import {
   FullScreen,
 } from "@element-plus/icons-vue";
 import ComponentLibrary from "./components/ComponentLibrary.vue";
+import EditorContextMenu from "./components/EditorContextMenu.vue";
+import { useEditorContextMenu } from "./composables/useEditorContextMenu";
 import "./workbench.css";
 import { createDemo } from "./domain/demo";
 import { readProjectFile, exportProject } from "./storage/projectTransfer";
@@ -178,6 +180,26 @@ const lastSaved = computed(() =>
     : "尚无本机保存",
 );
 const busy = computed(() => loading.value || saving.value || importing.value);
+const contextMenu = useEditorContextMenu(editor, layers);
+const { position: menuPosition, groups: menuGroups } = contextMenu;
+function openContextMenu(
+  event: MouseEvent,
+  id: string | null,
+  point?: { x: number; y: number },
+) {
+  if (
+    busy.value ||
+    loadBlocked.value ||
+    mode.value !== "edit" ||
+    drawingTool.value
+  )
+    return;
+  contextMenu.open(event, id, point);
+}
+watch(
+  () => [doc.value.page.id, mode.value, busy.value, drawingTool.value],
+  contextMenu.close,
+);
 
 function changeText(field: "name" | "text", value: string) {
   if (selected.value) editor.update(selected.value.id, { [field]: value });
@@ -516,6 +538,7 @@ watch(selectedId, () => {
             @ungroup="layers.ungroup"
             @align="layers.align"
             @distribute="layers.distribute"
+            @context="openContextMenu"
           />
         </aside>
         <section class="canvas-workspace" aria-label="编辑工作区">
@@ -638,6 +661,7 @@ watch(selectedId, () => {
                 @gesture-end="editor.endGesture"
                 @transform="(id, patch) => editor.update(id, patch)"
                 @move="editor.move"
+                @context="openContextMenu"
               />
               <div v-if="!doc.elements.length" class="canvas-empty">
                 <div class="empty-illustration">
@@ -651,6 +675,13 @@ watch(selectedId, () => {
               </div>
             </div>
           </CanvasViewport>
+          <EditorContextMenu
+            v-if="menuPosition"
+            :x="menuPosition.x"
+            :y="menuPosition.y"
+            :groups="menuGroups"
+            @close="contextMenu.close"
+          />
           <footer class="canvas-footer">
             <span
               ><i class="status-dot"></i>

@@ -19,6 +19,7 @@ defineEmits<{
   ungroup: [];
   align: [direction: string];
   distribute: [axis: "x" | "y"];
+  context: [event: MouseEvent, id: string];
 }>();
 </script>
 <template>
@@ -28,6 +29,7 @@ defineEmits<{
         v-for="item in [...document.elements].reverse()"
         :key="item.id"
         class="layer-row"
+        @contextmenu.prevent.stop="$emit('context', $event, item.id)"
       >
         <button
           :aria-label="`选择图元 ${item.name}`"

@@ -33,7 +33,8 @@ export function useEditor() {
   const past = ref<DiagramDocument[]>([]),
     future = ref<DiagramDocument[]>([]);
   let gesture: DiagramDocument | null = null;
-  let clipboard: DiagramElement[] = [];
+  const clipboard = ref<DiagramElement[]>([]);
+  const canPaste = computed(() => clipboard.value.length > 0);
   const canUndo = computed(() => past.value.length > 0),
     canRedo = computed(() => future.value.length > 0);
   const saveState = computed(() =>
@@ -61,7 +62,7 @@ export function useEditor() {
     }
   }
   function resetHistory() {
-    clipboard = [];
+    clipboard.value = [];
     past.value = [];
     future.value = [];
     gesture = null;
@@ -219,19 +220,27 @@ export function useEditor() {
     selectedIds.value = [];
   }
   function copy() {
-    clipboard = clone(
+    clipboard.value = clone(
       document.value.elements.filter((e) => selectedIds.value.includes(e.id)),
     );
   }
   function paste() {
-    if (!clipboard.length) return;
-    const dx = 24,
-      dy = 24;
+    pasteAt();
+  }
+  function pasteAt(center?: { x: number; y: number }) {
+    if (!clipboard.value.length) return;
+    const source = clipboard.value;
+    const left = Math.min(...source.map((e) => e.x));
+    const top = Math.min(...source.map((e) => e.y));
+    const right = Math.max(...source.map((e) => e.x + e.width));
+    const bottom = Math.max(...source.map((e) => e.y + e.height));
+    const dx = center ? center.x - (left + right) / 2 : 24;
+    const dy = center ? center.y - (top + bottom) / 2 : 24;
     error.value = "";
     const groups = new Map<string, string>();
-    for (const item of clipboard)
+    for (const item of source)
       if (item.groupId) groups.set(item.groupId, crypto.randomUUID());
-    const items = clipboard.map((e) => ({
+    const items = source.map((e) => ({
       ...clone(e),
       id: crypto.randomUUID(),
       groupId: e.groupId ? groups.get(e.groupId) : undefined,
@@ -240,7 +249,7 @@ export function useEditor() {
     }));
     commitMutation(() => document.value.elements.push(...items));
     selectedIds.value = items.map((e) => e.id);
-    clipboard = clone(items);
+    clipboard.value = clone(items);
   }
   function duplicate() {
     copy();
@@ -294,6 +303,8 @@ export function useEditor() {
     copy,
     paste,
     duplicate,
+    pasteAt,
+    canPaste,
     undo,
     redo,
     commitMutation,
