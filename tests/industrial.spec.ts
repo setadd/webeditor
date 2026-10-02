@@ -1,6 +1,26 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
+test("普通设备透明模式保留实时值和数据异常提示", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "添加设备", exact: true }).click();
+  await page.getByLabel("显示文字", { exact: true }).fill("");
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
+  await page
+    .getByLabel("绑定点位", { exact: true })
+    .selectOption("temperature");
+  await page.getByRole("tab", { name: "属性", exact: true }).click();
+  await page.getByLabel("展示方式", { exact: true }).selectOption("plain");
+  await expect(
+    page.getByTestId("canvas").getByText("25 °C", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "数据", exact: true }).click();
+  await page.getByLabel("温度可用", { exact: true }).uncheck();
+  await expect(
+    page.getByTestId("canvas").getByText("数据不可用", { exact: true }),
+  ).toBeVisible();
+});
+
 test("透明设备图片可镜像，文字样式撤销恢复旧默认", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "设备", exact: true }).click();
@@ -14,13 +34,11 @@ test("透明设备图片可镜像，文字样式撤销恢复旧默认", async ({
     ctx.fillRect(0, 0, 20, 40);
     return canvas.toDataURL();
   });
-  await page
-    .getByLabel("上传默认图片", { exact: true })
-    .setInputFiles({
-      name: "pump.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(url.split(",")[1]!, "base64"),
-    });
+  await page.getByLabel("上传默认图片", { exact: true }).setInputFiles({
+    name: "pump.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(url.split(",")[1]!, "base64"),
+  });
   const node = page.getByTestId("canvas").locator(".x6-node");
   await expect(node.locator("rect").first()).toHaveAttribute(
     "fill",

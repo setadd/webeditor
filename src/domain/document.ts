@@ -261,15 +261,18 @@ export function parseDocument(
         !finite(l.strokeWidth) ||
         l.strokeWidth < 1 ||
         l.strokeWidth > 40 ||
-        !["solid", "dashed", "dotted"].includes(String(l.dash)) ||
+        typeof l.dash !== "string" ||
+        !["solid", "dashed", "dotted"].includes(l.dash) ||
         (l.flowColor !== undefined &&
           (typeof l.flowColor !== "string" || !isColor(l.flowColor))) ||
         (l.flowWidth !== undefined &&
           (!finite(l.flowWidth) || l.flowWidth < 0.1 || l.flowWidth > 1)) ||
         (l.lineCap !== undefined &&
-          !["round", "butt", "square"].includes(String(l.lineCap))) ||
+          (typeof l.lineCap !== "string" ||
+            !["round", "butt", "square"].includes(l.lineCap))) ||
         (l.lineJoin !== undefined &&
-          !["round", "miter", "bevel"].includes(String(l.lineJoin))) ||
+          (typeof l.lineJoin !== "string" ||
+            !["round", "miter", "bevel"].includes(l.lineJoin))) ||
         typeof l.startArrow !== "boolean" ||
         typeof l.endArrow !== "boolean"
       )

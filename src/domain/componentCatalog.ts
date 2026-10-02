@@ -1,6 +1,12 @@
-import type { DiagramElement, ElementKind } from "./document";
+import {
+  createElement,
+  type DiagramDocument,
+  type DiagramElement,
+  type ElementKind,
+} from "./document";
 import { symbolNames, type SymbolName } from "./visual";
-export type ComponentId = Exclude<ElementKind, "line"> | SymbolName | "image" | "dataText";
+export type ComponentId =
+  Exclude<ElementKind, "line"> | SymbolName | "image" | "dataText";
 interface ComponentPreset {
   id: ComponentId;
   kind: ElementKind;
@@ -100,4 +106,12 @@ export const componentCatalog: ComponentPreset[] = [
 ];
 export function componentPreset(id: string) {
   return componentCatalog.find((item) => item.id === id);
+}
+export function createComponent(id: ComponentId, document: DiagramDocument) {
+  const preset = componentPreset(id);
+  if (!preset) throw new Error("未知图元预设");
+  const item = createElement(preset.kind, document);
+  if (preset.preset)
+    Object.assign(item, structuredClone(preset.preset), { name: preset.name });
+  return item;
 }

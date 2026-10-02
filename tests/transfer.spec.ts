@@ -110,6 +110,8 @@ test("损坏备份、未知点位和无效图片均原子拒绝，取消替换�
     { ...backup, elements: [{ ...backup.elements[0], symbol: "unknown-symbol" }] },
     { ...backup, elements: [{ ...backup.elements[0], visual: { fontSize: 0 } }] },
     { ...backup, elements: [{ ...backup.elements[0], visual: { decimals: 2.5 } }] },
+    ...["mode", "align", "imageFit"].map((key, index) => ({ ...backup, elements: [{ ...backup.elements[0], visual: { [key]: [["plain"], ["left"], ["stretch"]][index] } }] })),
+    ...["lineCap", "lineJoin"].map(key => ({ ...backup, elements: [{ ...backup.elements[0], kind: "line", line: { type: "straight", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], strokeWidth: 2, dash: "solid", startArrow: false, endArrow: false, [key]: ["round"] } }] })),
     { ...backup, elements: [{ ...backup.elements[0], visual: { fill: "url(https://example.invalid/image)" } }] },
     {
       ...backup,

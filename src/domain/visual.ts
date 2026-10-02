@@ -38,6 +38,9 @@ export interface VisualStyle {
 export function isVisual(value: unknown): value is VisualStyle {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as Record<string, unknown>;
+  const enumeration = (key: string, allowed: string[]) =>
+    v[key] === undefined ||
+    (typeof v[key] === "string" && allowed.includes(v[key]));
   const number = (key: string, min: number, max: number) =>
     v[key] === undefined ||
     (typeof v[key] === "number" &&
@@ -63,10 +66,8 @@ export function isVisual(value: unknown): value is VisualStyle {
     number("opacity", 0, 1) &&
     number("decimals", 0, 6) &&
     (v.decimals === undefined || Number.isInteger(v.decimals)) &&
-    (v.mode === undefined || ["card", "plain"].includes(String(v.mode))) &&
-    (v.align === undefined ||
-      ["left", "center", "right"].includes(String(v.align))) &&
-    (v.imageFit === undefined ||
-      ["contain", "stretch"].includes(String(v.imageFit)))
+    enumeration("mode", ["card", "plain"]) &&
+    enumeration("align", ["left", "center", "right"]) &&
+    enumeration("imageFit", ["contain", "stretch"])
   );
 }

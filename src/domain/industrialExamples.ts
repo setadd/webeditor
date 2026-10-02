@@ -1,10 +1,9 @@
 import {
   createDocument,
-  createElement,
   type DiagramDocument,
   type DiagramElement,
 } from "./document";
-import { componentPreset, type ComponentId } from "./componentCatalog";
+import { createComponent, type ComponentId } from "./componentCatalog";
 import { lineBounds, type Point } from "./lines";
 
 export function createIndustrialExamples() {
@@ -20,15 +19,7 @@ export function createIndustrialExamples() {
     y: number,
     patch: Partial<DiagramElement> = {},
   ) {
-    const preset = componentPreset(presetId)!;
-    const item = {
-      ...createElement(preset.kind, doc),
-      ...structuredClone(preset.preset || {}),
-      name: preset.name,
-      x,
-      y,
-      ...patch,
-    };
+    const item = { ...createComponent(presetId, doc), x, y, ...patch };
     doc.elements.push(item);
     return item;
   }

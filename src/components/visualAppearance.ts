@@ -27,14 +27,19 @@ export function applyVisual(
       for (const key of ["accent", "iconBg", "ring", "rotor", "name", "tag"])
         attrs[key] = { ...attrs[key], display: "none" };
       // Keep a transparent hit target even when only an image or symbol is visible.
-      attrs.body = { ...attrs.body,
-        fill: item.symbol || !v?.fill || v.fill === "none" ? "transparent" : v.fill,
+      attrs.body = {
+        ...attrs.body,
+        fill:
+          item.symbol || !v?.fill || v.fill === "none" ? "transparent" : v.fill,
         stroke: item.symbol ? "none" : v?.stroke || "none",
       };
+      const labelText = item.symbol
+        ? item.text
+        : attrs.label?.text || item.text;
       attrs.label = {
         ...attrs.label,
-        display: !hasImage && item.text ? "inline" : "none",
-        text: item.text,
+        display: !hasImage && labelText ? "inline" : "none",
+        text: labelText,
       };
     }
     if (item.kind === "metric")
